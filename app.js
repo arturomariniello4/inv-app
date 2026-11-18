@@ -1,7 +1,9 @@
-// INV web app: lists alerts, briefings and weekly reports received by push, and
-// sets up notifications. Everything stays on this phone (IndexedDB). It never trades.
+// INV web app: a personal front page built from what arrives by push. Everything stays on this
+// phone (IndexedDB). Four tabs: Today (the latest briefing as a front page), Alerts, Reports
+// (past briefings and Saturday reports) and Settings. It never trades.
 const DB = "inv", STORE = "messages";
 const $ = (id) => document.getElementById(id);
+const view = () => $("view");
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -26,28 +28,32 @@ async function allMessages() {
 }
 
 function esc(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function safeUrl(u) { return /^https:\/\//.test(u || "") ? u : "#"; }
+function when(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-// Small Markdown subset: headings, bold, italics, links, lists, tables. Input is escaped first.
+// Small Markdown subset for alerts and the Saturday report. Input is escaped first.
 function inline(s) {
   return esc(s)
     .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
     .replace(/(^|[\s(])_(.+?)_(?=$|[\s.,)])/g, "$1<i>$2</i>")
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-    .replace(/(^|\s)(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 }
-
 function render(md) {
   const out = [];
   let table = null, list = false;
   const flush = () => {
-    if (table) { out.push("<table>" + table.join("") + "</table>"); table = null; }
+    if (table) { out.push('<div style="overflow-x:auto"><table>' + table.join("") + "</table></div>"); table = null; }
     if (list) { out.push("</ul>"); list = false; }
   };
   for (const line of (md || "").split("\n")) {
     if (/^\|/.test(line)) {
-      if (/^\|[-\s|]+\|$/.test(line)) continue;
+      if (/^\|[-\s|:]+\|$/.test(line)) continue;
       table = table || [];
       table.push("<tr>" + line.split("|").slice(1, -1).map((c) => "<td>" + inline(c.trim()) + "</td>").join("") + "</tr>");
       continue;
@@ -60,115 +66,220 @@ function render(md) {
     }
     flush();
     const h = line.match(/^(#{1,3}) (.*)/);
-    if (h) out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`);
+    if (h) out.push(`<h${h[1].length + 1}>${inline(h[2])}</h${h[1].length + 1}>`);
     else if (line.trim()) out.push("<p>" + inline(line) + "</p>");
   }
   flush();
   return out.join("\n");
 }
 
-const KIND = { alert: "Alert", briefing: "Evening briefing", weekly: "Weekly report" };
-
-// The evening briefing, laid out like a newspaper: masthead, markets strip, lead story, sections.
-function safeUrl(u) { return /^https:\/\//.test(u || "") ? u : "#"; }
-
-function storyHtml(s, lead) {
-  const links = (s.links || []).map(([label, url]) =>
-    `<a href="${esc(safeUrl(url))}" target="_blank" rel="noopener">${esc(label)}</a>`).join(" · ");
-  const cases = lead && s.up ? `<div class="np-case"><b class="up">Up case</b><span>${esc(s.up)}</span><b class="down">Down case</b><span>${esc(s.down)}</span></div>` : "";
-  const tag = lead ? "h2" : "h3";
-  return `<article class="${lead ? "np-lead" : "np-item"}">
-    ${s.kicker ? `<div class="np-kicker">${esc(s.kicker)}</div>` : ""}
-    <${tag}>${esc(s.headline)}</${tag}>
-    ${s.standfirst ? `<p class="np-stand">${esc(s.standfirst)}</p>` : ""}
-    ${cases}
-    <div class="np-by">${esc(s.byline)}${links ? " · " + links : ""}</div>
-  </article>`;
+// ---- Newspaper pieces --------------------------------------------------------------------
+function links(s) {
+  return (s.links || []).map(([label, url]) => `<a href="${esc(safeUrl(url))}" target="_blank" rel="noopener">${esc(label)}</a>`).join(" · ");
+}
+function story(s, lead) {
+  const l = links(s);
+  const cases = lead && s.up ? `<div class="case"><b class="up">Up case</b><span>${esc(s.up)}</span><b class="down">Down case</b><span>${esc(s.down)}</span></div>` : "";
+  return lead ? `<article class="lead">
+      ${s.kicker ? `<div class="kicker">${esc(s.kicker)}</div>` : ""}
+      <h2>${esc(s.headline)}</h2>
+      ${s.standfirst ? `<p class="stand">${esc(s.standfirst)}</p>` : ""}${cases}
+      <div class="by">${esc(s.byline)}${l ? " · " + l : ""}</div></article>`
+    : `<article class="item">
+      ${s.kicker ? `<div class="kicker">${esc(s.kicker)}</div>` : ""}
+      <h4>${esc(s.headline)}</h4>
+      ${s.standfirst ? `<p class="stand">${esc(s.standfirst)}</p>` : ""}
+      <div class="by">${esc(s.byline)}${l ? " · " + l : ""}</div></article>`;
+}
+function ticker(markets) {
+  if (!(markets || []).length) return "";
+  return `<div class="ticker" aria-label="Markets at the close">${markets.map((m) =>
+    `<div><span>${esc(m.name)}</span><b>${esc(m.value)}</b><i class="${/^[-−]/.test(m.change) ? "down" : "up"}">${esc(m.change)}</i></div>`).join("")}</div>`;
+}
+function masthead(dateline, right) {
+  return `<header class="mast"><div class="mast-top"><span>${esc(dateline)}</span><span>${esc(right)}</span></div>
+    <div class="mast-name">INV</div><div class="mast-sub">Your evening briefing</div></header>`;
+}
+function bar(title, back) {
+  return `<div class="bar"><h1>${esc(title)}</h1>${back ? `<button class="back" data-go="${esc(back)}">Back</button>` : ""}</div>`;
 }
 
-function renderBriefing(doc) {
-  const markets = (doc.markets || []).length ? `<div class="np-ticker">${doc.markets.map((m) =>
-    `<div><span>${esc(m.name)}</span><b>${esc(m.value)}</b><i class="${/^[-−]/.test(m.change) ? "down" : "up"}">${esc(m.change)}</i></div>`).join("")}</div>` : "";
-  const sections = (doc.sections || []).map((sec) =>
-    `<section class="np-sec"><h4>${esc(sec.title)}</h4>${sec.stories.map((s) => storyHtml(s, false)).join("")}</section>`).join("");
-  const quiet = (doc.quiet || []).length ? `<section class="np-sec"><h4>Also checked</h4><ul class="np-quiet">${doc.quiet.map((q) =>
+// ---- Views --------------------------------------------------------------------------------
+let cache = [];
+const briefings = () => cache.filter((m) => m.kind === "briefing");
+const alerts = () => cache.filter((m) => m.kind === "alert");
+const weeklies = () => cache.filter((m) => m.kind === "weekly");
+const recent = (m, hours) => Date.now() - new Date(m.received || 0) < hours * 3600e3;
+
+function briefingBody(doc, opts = {}) {
+  const sections = (doc.sections || []).map((sec) => `<section class="sec"><div class="sec-h"><h3>${esc(sec.title)}</h3></div>
+    ${sec.stories.map((s) => story(s, false)).join("")}</section>`).join("");
+  const quiet = (doc.quiet || []).length ? `<section class="sec"><div class="sec-h"><h3>Also checked</h3></div><ul class="quiet">${doc.quiet.map((q) =>
     `<li><b>${esc(q.title)}</b> ${esc(q.note)}</li>`).join("")}</ul></section>` : "";
-  return `<div class="np">
-    <header class="np-mast"><div class="np-mast-top"><span>${esc(doc.dateline)}</span><span>${esc(doc.time)} Luxembourg</span></div>
-      <div class="np-name">INV</div><div class="np-sub">Your evening briefing</div></header>
-    ${markets}
-    ${doc.lead ? storyHtml(doc.lead, true) : '<p class="np-stand np-pad">A quiet day: nothing passed the importance threshold.</p>'}
+  return `${ticker(doc.markets)}
+    ${opts.alerts || ""}
+    ${doc.lead ? story(doc.lead, true) : '<p class="note">A quiet day: nothing passed the importance threshold.</p>'}
     ${sections}${quiet}
-    ${doc.later ? `<p class="np-note">${doc.later} more stories are saved for the Saturday report.</p>` : ""}
-    ${doc.watchlist ? `<p class="np-note">${esc(doc.watchlist)}</p>` : ""}
-    <p class="np-last">${esc(doc.last_line || "")}</p>
-  </div>`;
+    ${doc.later ? `<p class="note">${doc.later} more stories are saved for the Saturday report.</p>` : ""}
+    ${doc.watchlist ? `<p class="note">${esc(doc.watchlist)}</p>` : ""}
+    ${opts.footer || ""}
+    <p class="last">${esc(doc.last_line || "Information only. You decide and place every order.")}</p>`;
 }
 
-async function showList() {
-  $("reader").classList.add("hidden");
-  $("back").classList.add("hidden");
-  $("heading").textContent = "INV";
-  const msgs = await allMessages();
-  $("list").classList.remove("hidden");
-  $("list").innerHTML = msgs.length ? msgs.map((m) => `
-    <div class="card item" data-id="${esc(m.id)}">
-      <div class="kind ${esc(m.kind)}">${esc(KIND[m.kind] || m.kind)} · ${esc((m.received || "").slice(0, 16).replace("T", " "))}</div>
-      <div class="title">${esc(m.title)}</div>
-      <div class="muted">${esc(m.body || "")}</div>
-    </div>`).join("") : '<p class="muted">Nothing yet. Alerts, the 22:30 evening briefing and the Saturday report will appear here.</p>';
-  document.querySelectorAll(".item").forEach((el) => el.addEventListener("click", () => open(el.dataset.id)));
+function alertRows(list) {
+  return list.map((m) => `<button class="row" data-open="${esc(m.id)}"><span><div class="kicker alert">Alert · ${esc(when(m.received))}</div>
+    <div class="t">${esc(m.title)}</div><div class="muted">${esc(m.body)}</div></span><span class="chev">›</span></button>`).join("");
 }
 
-async function open(id) {
-  const m = (await allMessages()).find((x) => x.id === id);
-  if (!m) return showList();
-  $("list").classList.add("hidden");
-  $("back").classList.remove("hidden");
-  $("heading").textContent = KIND[m.kind] || "INV";
-  $("reader").innerHTML = m.doc ? renderBriefing(m.doc) : render(m.text || m.body) +
-    (m.url ? `<p><a href="${esc(m.url)}" target="_blank" rel="noopener">Open the source</a></p>` : "");
-  $("reader").classList.toggle("paper", !!m.doc);
-  $("reader").classList.remove("hidden");
-  history.replaceState(null, "", "#" + encodeURIComponent(id));
-}
-
-function b64ToBytes(b64) {
-  const s = atob((b64 + "=".repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/"));
-  return Uint8Array.from(s, (c) => c.charCodeAt(0));
-}
-
-async function setup() {
-  const standalone = window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
-  const supported = "serviceWorker" in navigator && "PushManager" in window;
-  const reg = supported ? await navigator.serviceWorker.register("sw.js") : null;
-  const existing = reg ? await reg.pushManager.getSubscription() : null;
-  if (existing && Notification.permission === "granted") return;
-  $("setup").classList.remove("hidden");
-  if (!standalone) {
-    $("setup-text").textContent = "First add this page to your Home Screen: tap Share, then 'Add to Home Screen'. Open INV from the Home Screen and come back here.";
-    $("subscribe").classList.add("hidden");
+function today() {
+  const latest = briefings().find((m) => m.doc);
+  const fresh = alerts().filter((m) => recent(m, 48));
+  const alertBlock = fresh.length ? `<section class="sec" style="margin-top:12px"><div class="sec-h"><h3>Alerts</h3>
+      <button data-go="alerts">All alerts</button></div>${alertRows(fresh.slice(0, 3))}</section>` : "";
+  const weekly = weeklies()[0];
+  const footer = `<section class="sec"><div class="sec-h"><h3>Reports</h3><button data-go="reports">Archive</button></div>
+    ${weekly ? `<button class="row" data-open="${esc(weekly.id)}"><span><div class="kicker">Saturday report · ${esc(weekly.at || "")}</div>
+      <div class="t">${esc(weekly.title)}</div><div class="muted">${esc(weekly.body)}</div></span><span class="chev">›</span></button>`
+      : '<p class="muted">The first Saturday report arrives at 07:00 on Saturday.</p>'}</section>`;
+  if (!latest) {
+    view().innerHTML = masthead(new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }), "")
+      + setupBanner() + alertBlock + `<div class="empty"><h2>Your first front page arrives at 22:30</h2>
+      <p class="muted">Each evening's briefing becomes this page: markets, the lead story and every asset class.</p></div>` + footer;
     return;
   }
-  if (!supported) { $("setup-text").textContent = "This browser cannot receive web notifications."; $("subscribe").classList.add("hidden"); return; }
-  $("setup-text").textContent = "Allow notifications so alerts, the 22:30 briefing and the Saturday report reach this phone.";
-  $("subscribe").onclick = async () => {
-    if ((await Notification.requestPermission()) !== "granted") { $("setup-text").textContent = "Notifications were not allowed. You can allow them in Settings, Notifications, INV."; return; }
-    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(window.INV_CONFIG.vapidPublicKey) });
-    $("sub-json").value = JSON.stringify(sub);
-    $("sub-out").classList.remove("hidden");
-    $("subscribe").classList.add("hidden");
-  };
-  $("copy").onclick = async () => { await navigator.clipboard.writeText($("sub-json").value); $("copy").textContent = "Copied"; };
+  const doc = latest.doc;
+  view().innerHTML = masthead(doc.dateline, `${doc.time} Luxembourg`) + setupBanner()
+    + briefingBody(doc, { alerts: alertBlock, footer });
 }
 
-$("back").addEventListener("click", () => { history.replaceState(null, "", "./"); showList(); });
+function alertsView() {
+  const list = alerts();
+  view().innerHTML = bar("Alerts") + `<div class="wrap">${list.length ? alertRows(list)
+    : '<p class="muted" style="padding:16px 0">No alerts yet. Urgent news reaches you here and on your lock screen; the threshold rises on busy days so it stays rare.</p>'}</div>`;
+  try { localStorage.setItem("inv-alerts-seen", new Date().toISOString()); } catch (_) {}
+  badge();
+}
+
+function reportsView() {
+  const rows = [...weeklies(), ...briefings()].sort((a, b) => (b.received || "").localeCompare(a.received || ""));
+  view().innerHTML = bar("Reports") + `<div class="wrap">${rows.length ? rows.map((m) => `<button class="row" data-open="${esc(m.id)}"><span>
+      <div class="kicker">${m.kind === "weekly" ? "Saturday report" : "Evening briefing"} · ${esc(m.doc ? m.doc.dateline : when(m.received))}</div>
+      <div class="t">${esc(m.doc && m.doc.lead ? m.doc.lead.headline : m.title)}</div><div class="muted">${esc(m.kind === "weekly" ? m.body : (m.doc ? m.doc.notification : m.body))}</div>
+    </span><span class="chev">›</span></button>`).join("") : '<p class="muted" style="padding:16px 0">Past briefings and Saturday reports appear here.</p>'}</div>`;
+}
+
+function settingsView() {
+  const p = (briefings().find((m) => m.doc && m.doc.profile) || {}).doc?.profile;
+  const edit = (url, label) => url ? `<a class="edit" href="${esc(safeUrl(url))}" target="_blank" rel="noopener">${label} ›</a>` : "";
+  view().innerHTML = bar("Settings") + `
+    <div class="group"><h3>Notifications</h3>${notifState()}</div>
+    <div class="group"><h3>Watchlist</h3>
+      ${p ? `<div class="chips">${p.following.map((f) => `<span class="chip">${esc(f)}</span>`).join("")}</div>` : '<p>Arrives with the next briefing.</p>'}
+      <p>Changes are made in the repository; the next briefing names what was added or removed.</p>
+      ${edit(p && p.edit_watchlist, "Edit watchlist on GitHub")}</div>
+    <div class="group"><h3>Schedule</h3>
+      <div class="kv"><span>Evening briefing</span><span>${esc(p ? p.briefing : "Every evening at 22:30")}</span></div>
+      <div class="kv"><span>Saturday report</span><span>${esc(p ? p.weekly : "Saturdays at 07:00")}</span></div>
+      <div class="kv"><span>Quiet hours</span><span>${esc(p ? p.quiet_hours : "23:00–07:00")}</span></div>
+      <div class="kv"><span>Urgent alerts</span><span>Rarer on busy days</span></div>
+      ${edit(p && p.edit_settings, "Change schedule or quiet hours on GitHub")}</div>
+    <div class="group"><h3>About</h3><p>Information only. The app never trades: every alert says what could be done and why, and you decide and place every order. Messages are stored only on this phone.</p></div>`;
+  wireSetup();
+}
+
+async function openMessage(id) {
+  const m = cache.find((x) => x.id === id);
+  if (!m) return go("today");
+  const back = m.kind === "alert" ? "alerts" : "reports";
+  if (m.doc) {
+    view().innerHTML = bar("Evening briefing", back) + masthead(m.doc.dateline, `${m.doc.time} Luxembourg`) + briefingBody(m.doc);
+  } else {
+    view().innerHTML = bar(m.kind === "weekly" ? "Saturday report" : m.kind === "alert" ? "Alert" : "Evening briefing", back)
+      + `<article class="wrap doc">${render(m.text || m.body)}${m.url ? `<p><a href="${esc(safeUrl(m.url))}" target="_blank" rel="noopener">Read source</a></p>` : ""}</article>`;
+  }
+  window.scrollTo(0, 0);
+}
+
+// ---- Notifications setup ------------------------------------------------------------------
+let reg = null;
+const standalone = () => window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+const pushOk = () => "serviceWorker" in navigator && "PushManager" in window;
+let subscribed = false;
+
+function setupBanner() {
+  if (subscribed) return "";
+  return `<div class="banner">Notifications are off on this phone. <button data-go="settings">Turn them on</button></div>`;
+}
+function notifState() {
+  if (subscribed) return `<div class="kv"><span>This phone</span><span>On</span></div>`;
+  if (!standalone()) return "<p>First add INV to your Home Screen: tap Share, then 'Add to Home Screen', and open it from there.</p>";
+  if (!pushOk()) return "<p>This browser cannot receive web notifications.</p>";
+  return `<p>Allow notifications so alerts, the 22:30 briefing and the Saturday report reach this phone.</p>
+    <button id="subscribe" class="btn">Allow notifications</button>
+    <div id="sub-out" class="hidden"><p>Copy this into the repository secret <b>INV_PUSH_SUBSCRIPTIONS</b>, inside square brackets: [ ... ]</p>
+    <textarea id="sub-json" readonly></textarea><button id="copy" class="btn">Copy</button></div>`;
+}
+function wireSetup() {
+  const b = $("subscribe");
+  if (b) b.onclick = async () => {
+    if ((await Notification.requestPermission()) !== "granted") { b.outerHTML = "<p>Notifications were not allowed. You can allow them in Settings, Notifications, INV.</p>"; return; }
+    const b64 = window.INV_CONFIG.vapidPublicKey;
+    const raw = atob((b64 + "=".repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/"));
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(raw, (c) => c.charCodeAt(0)) });
+    $("sub-json").value = JSON.stringify(sub);
+    $("sub-out").classList.remove("hidden");
+    b.classList.add("hidden");
+  };
+  const c = $("copy");
+  if (c) c.onclick = async () => {
+    try { await navigator.clipboard.writeText($("sub-json").value); c.textContent = "Copied"; }
+    catch (_) { $("sub-json").select(); }
+  };
+}
+
+// ---- Navigation ---------------------------------------------------------------------------
+function badge() {
+  let seen = "";
+  try { seen = localStorage.getItem("inv-alerts-seen") || ""; } catch (_) {}
+  const n = alerts().filter((m) => (m.received || "") > seen).length;
+  $("badge").textContent = n;
+  $("badge").classList.toggle("hidden", !n);
+}
+
+async function go(tab, id) {
+  cache = await allMessages();
+  const name = id ? "open" : tab;
+  document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === (id ? null : tab)));
+  history.replaceState(null, "", id ? "#" + encodeURIComponent(id) : tab === "today" ? "./" : "#" + tab);
+  if (name === "open") await openMessage(id);
+  else ({ today, alerts: alertsView, reports: reportsView, settings: settingsView }[tab] || today)();
+  if (!id) window.scrollTo(0, 0);
+  badge();
+}
+
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-tab],[data-go],[data-open]");
+  if (!t) return;
+  if (t.dataset.open) go(null, t.dataset.open);
+  else go(t.dataset.tab || t.dataset.go);
+});
+
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (e) => {
-    if (e.data && e.data.type === "open") open(e.data.id);
-    else showList();
+    if (e.data && e.data.type === "open") go(null, e.data.id);
+    else if (!/^#(alerts|reports|settings)|^#.+:/.test(location.hash)) go("today");
   });
 }
 
-setup();
-location.hash ? open(decodeURIComponent(location.hash.slice(1))) : showList();
+(async () => {
+  if (pushOk()) {
+    try {
+      reg = await navigator.serviceWorker.register("sw.js");
+      subscribed = !!(await reg.pushManager.getSubscription()) && Notification.permission === "granted";
+    } catch (_) {}
+  }
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (["alerts", "reports", "settings"].includes(h)) go(h);
+  else if (h) go(null, h);
+  else go("today");
+})();
