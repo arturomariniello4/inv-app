@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="INV">
+  <meta name="theme-color" content="#0f1720">
+  <title>INV</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <style>
+    :root { --bg:#f6f7f9; --card:#fff; --text:#111827; --muted:#6b7280; --line:#e5e7eb; --accent:#0f766e; --alert:#b45309; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#0f1720; --card:#17212b; --text:#e5e7eb; --muted:#9ca3af; --line:#263241; --accent:#2dd4bf; --alert:#fbbf24; } }
+    * { box-sizing: border-box; }
+    body { margin:0; font:16px/1.5 -apple-system, system-ui, sans-serif; background:var(--bg); color:var(--text);
+           padding: env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom)); }
+    header { display:flex; align-items:center; justify-content:space-between; padding:16px 0 8px; }
+    h1 { font-size:22px; margin:0; }
+    .muted { color:var(--muted); font-size:13px; }
+    button { font:inherit; border:0; border-radius:10px; padding:10px 14px; background:var(--accent); color:#fff; }
+    button.secondary { background:transparent; color:var(--accent); border:1px solid var(--line); }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin:10px 0; }
+    .item { cursor:pointer; }
+    .kind { font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); }
+    .kind.alert { color:var(--alert); }
+    .title { font-weight:600; margin:2px 0; }
+    #reader h1, #reader h2 { font-size:18px; margin:18px 0 6px; }
+    #reader table { border-collapse:collapse; font-size:13px; width:100%; display:block; overflow-x:auto; }
+    #reader td, #reader th { border-bottom:1px solid var(--line); padding:4px 6px; text-align:left; }
+    #reader a { color:var(--accent); word-break:break-all; }
+    textarea { width:100%; height:120px; font:12px ui-monospace, monospace; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--text); }
+    .hidden { display:none; }
+    footer { margin-top:24px; text-align:center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="heading">INV</h1>
+    <button id="back" class="secondary hidden">Back</button>
+  </header>
+
+  <section id="setup" class="card hidden">
+    <div class="title">Turn on notifications</div>
+    <p id="setup-text" class="muted"></p>
+    <button id="subscribe">Allow notifications</button>
+    <div id="sub-out" class="hidden">
+      <p class="muted">Copy this and paste it into the repository secret <b>INV_PUSH_SUBSCRIPTIONS</b>, inside square brackets: [ ... ]</p>
+      <textarea id="sub-json" readonly></textarea>
+      <button id="copy" class="secondary">Copy</button>
+    </div>
+  </section>
+
+  <main id="list"></main>
+  <article id="reader" class="card hidden"></article>
+
+  <footer class="muted">Information only. The app never trades: you decide and place every order.</footer>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
