@@ -78,7 +78,7 @@ function storyHtml(s, lead) {
   const cases = lead && s.up ? `<div class="np-case"><b class="up">Up case</b><span>${esc(s.up)}</span><b class="down">Down case</b><span>${esc(s.down)}</span></div>` : "";
   const tag = lead ? "h2" : "h3";
   return `<article class="${lead ? "np-lead" : "np-item"}">
-    <div class="np-kicker">${esc(s.kicker)}</div>
+    ${s.kicker ? `<div class="np-kicker">${esc(s.kicker)}</div>` : ""}
     <${tag}>${esc(s.headline)}</${tag}>
     ${s.standfirst ? `<p class="np-stand">${esc(s.standfirst)}</p>` : ""}
     ${cases}
