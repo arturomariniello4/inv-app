@@ -1,10 +1,14 @@
 // Service worker: receives encrypted pushes, keeps them on the phone, shows a notification.
-const DB = "inv", STORE = "messages";
+const DB = "inv", STORE = "messages", PARTS = "parts";
 
 function openDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: "id" });
+    const req = indexedDB.open(DB, 2);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
+      if (!db.objectStoreNames.contains(PARTS)) db.createObjectStore(PARTS, { keyPath: "key" });
+    };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -20,6 +24,22 @@ async function save(msg) {
   });
 }
 
+// A long message (the briefing, the weekly report) arrives in several pushes; put them back together.
+async function addPart(msg) {
+  const db = await openDb();
+  const tx = db.transaction(PARTS, "readwrite");
+  const store = tx.objectStore(PARTS);
+  store.put({ key: msg.id + "#" + msg.part, id: msg.id, part: msg.part, chunk: msg.chunk });
+  const all = await new Promise((resolve, reject) => {
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result.filter((p) => p.id === msg.id));
+    req.onerror = () => reject(req.error);
+  });
+  if (all.length < msg.parts) return null;
+  all.sort((a, b) => a.part - b.part).forEach((p) => store.delete(p.key));
+  return JSON.parse(all.map((p) => p.chunk).join(""));
+}
+
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
@@ -27,12 +47,17 @@ self.addEventListener("push", (event) => {
   let msg;
   try { msg = event.data.json(); } catch (_) { msg = { id: "msg:" + Date.now(), kind: "alert", title: "INV", body: event.data ? event.data.text() : "", text: "" }; }
   event.waitUntil((async () => {
-    await save(msg);
+    if (msg.parts) {
+      const whole = await addPart(msg);
+      if (whole) await save(whole);
+    } else {
+      await save(msg);
+    }
     const clients = await self.clients.matchAll({ type: "window" });
     clients.forEach((c) => c.postMessage({ type: "new-message" }));
     await self.registration.showNotification(msg.title || "INV", {
       body: msg.body || "",
-      tag: msg.id,
+      tag: msg.id,          // the parts of one message replace each other: one notification
       data: { id: msg.id },
       icon: "icon-192.png",
     });

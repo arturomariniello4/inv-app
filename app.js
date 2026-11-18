@@ -5,8 +5,12 @@ const $ = (id) => document.getElementById(id);
 
 function openDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: "id" });
+    const req = indexedDB.open(DB, 2);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
+      if (!db.objectStoreNames.contains("parts")) db.createObjectStore("parts", { keyPath: "key" });
+    };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -63,7 +67,43 @@ function render(md) {
   return out.join("\n");
 }
 
-const KIND = { alert: "Alert", briefing: "Daily briefing", weekly: "Weekly report" };
+const KIND = { alert: "Alert", briefing: "Evening briefing", weekly: "Weekly report" };
+
+// The evening briefing, laid out like a newspaper: masthead, markets strip, lead story, sections.
+function safeUrl(u) { return /^https:\/\//.test(u || "") ? u : "#"; }
+
+function storyHtml(s, lead) {
+  const links = (s.links || []).map(([label, url]) =>
+    `<a href="${esc(safeUrl(url))}" target="_blank" rel="noopener">${esc(label)}</a>`).join(" · ");
+  const cases = lead && s.up ? `<div class="np-case"><b class="up">Up case</b><span>${esc(s.up)}</span><b class="down">Down case</b><span>${esc(s.down)}</span></div>` : "";
+  const tag = lead ? "h2" : "h3";
+  return `<article class="${lead ? "np-lead" : "np-item"}">
+    <div class="np-kicker">${esc(s.kicker)}</div>
+    <${tag}>${esc(s.headline)}</${tag}>
+    ${s.standfirst ? `<p class="np-stand">${esc(s.standfirst)}</p>` : ""}
+    ${cases}
+    <div class="np-by">${esc(s.byline)}${links ? " · " + links : ""}</div>
+  </article>`;
+}
+
+function renderBriefing(doc) {
+  const markets = (doc.markets || []).length ? `<div class="np-ticker">${doc.markets.map((m) =>
+    `<div><span>${esc(m.name)}</span><b>${esc(m.value)}</b><i class="${/^[-−]/.test(m.change) ? "down" : "up"}">${esc(m.change)}</i></div>`).join("")}</div>` : "";
+  const sections = (doc.sections || []).map((sec) =>
+    `<section class="np-sec"><h4>${esc(sec.title)}</h4>${sec.stories.map((s) => storyHtml(s, false)).join("")}</section>`).join("");
+  const quiet = (doc.quiet || []).length ? `<section class="np-sec"><h4>Also checked</h4><ul class="np-quiet">${doc.quiet.map((q) =>
+    `<li><b>${esc(q.title)}</b> ${esc(q.note)}</li>`).join("")}</ul></section>` : "";
+  return `<div class="np">
+    <header class="np-mast"><div class="np-mast-top"><span>${esc(doc.dateline)}</span><span>${esc(doc.time)} Luxembourg</span></div>
+      <div class="np-name">INV</div><div class="np-sub">Your evening briefing</div></header>
+    ${markets}
+    ${doc.lead ? storyHtml(doc.lead, true) : '<p class="np-stand np-pad">A quiet day: nothing passed the importance threshold.</p>'}
+    ${sections}${quiet}
+    ${doc.later ? `<p class="np-note">${doc.later} more stories are saved for the Saturday report.</p>` : ""}
+    ${doc.watchlist ? `<p class="np-note">${esc(doc.watchlist)}</p>` : ""}
+    <p class="np-last">${esc(doc.last_line || "")}</p>
+  </div>`;
+}
 
 async function showList() {
   $("reader").classList.add("hidden");
@@ -76,7 +116,7 @@ async function showList() {
       <div class="kind ${esc(m.kind)}">${esc(KIND[m.kind] || m.kind)} · ${esc((m.received || "").slice(0, 16).replace("T", " "))}</div>
       <div class="title">${esc(m.title)}</div>
       <div class="muted">${esc(m.body || "")}</div>
-    </div>`).join("") : '<p class="muted">Nothing yet. Alerts, the 22:30 briefing and the Saturday report will appear here.</p>';
+    </div>`).join("") : '<p class="muted">Nothing yet. Alerts, the 22:30 evening briefing and the Saturday report will appear here.</p>';
   document.querySelectorAll(".item").forEach((el) => el.addEventListener("click", () => open(el.dataset.id)));
 }
 
@@ -86,8 +126,9 @@ async function open(id) {
   $("list").classList.add("hidden");
   $("back").classList.remove("hidden");
   $("heading").textContent = KIND[m.kind] || "INV";
-  $("reader").innerHTML = render(m.text || m.body) +
+  $("reader").innerHTML = m.doc ? renderBriefing(m.doc) : render(m.text || m.body) +
     (m.url ? `<p><a href="${esc(m.url)}" target="_blank" rel="noopener">Open the source</a></p>` : "");
+  $("reader").classList.toggle("paper", !!m.doc);
   $("reader").classList.remove("hidden");
   history.replaceState(null, "", "#" + encodeURIComponent(id));
 }

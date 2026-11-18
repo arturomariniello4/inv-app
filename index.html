@@ -32,6 +32,40 @@
     #reader a { color:var(--accent); word-break:break-all; }
     textarea { width:100%; height:120px; font:12px ui-monospace, monospace; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--text); }
     .hidden { display:none; }
+    /* Evening briefing: newspaper layout */
+    :root { --paper:#fbfbf8; --ink:#141c25; --ink2:#33404d; --np-accent:#1c4f86; --up:#1f7a45; --down:#b23b3b; }
+    @media (prefers-color-scheme: dark) { :root { --paper:#151b22; --ink:#e8edf2; --ink2:#c3ccd5; --np-accent:#8fb6e6; --up:#5fc48a; --down:#ef7d7d; } }
+    #reader.paper { background:var(--paper); color:var(--ink); padding:0; overflow:hidden; }
+    .np { font-family: -apple-system, system-ui, sans-serif; padding-bottom:16px; }
+    .np h2, .np h3, .np-name, .np-sub, .np-stand, .np-last { font-family: "New York", "Iowan Old Style", Georgia, serif; }
+    #reader.paper ~ footer { display:none; }
+    .np-mast { display:block; text-align:center; padding:12px 14px 8px; border-bottom:3px double var(--ink); }
+    .np-mast-top { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
+    .np-name { font-weight:700; font-size:40px; letter-spacing:.14em; line-height:1.05; }
+    .np-sub { font-style:italic; font-size:14px; color:var(--muted); }
+    .np-ticker { display:flex; overflow-x:auto; border-bottom:1px solid var(--line); }
+    .np-ticker div { flex:0 0 auto; display:grid; padding:6px 12px; border-right:1px solid var(--line); font-variant-numeric:tabular-nums; }
+    .np-ticker span { font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; }
+    .np-ticker b { font:500 13px ui-monospace, monospace; } .np-ticker i { font:normal 11px ui-monospace, monospace; }
+    .up { color:var(--up); } .down { color:var(--down); }
+    .np-lead { padding:12px 14px 14px; border-bottom:1px solid var(--ink); display:grid; gap:8px; }
+    .np-lead h2 { font-size:26px; line-height:1.12; margin:0; }
+    .np-kicker { font-size:11px; text-transform:uppercase; letter-spacing:.1em; font-weight:700; color:var(--np-accent); }
+    .np-stand { font-size:16px; line-height:1.42; margin:0; color:var(--ink2); }
+    .np-case { display:grid; grid-template-columns:auto 1fr; gap:4px 10px; font-size:13px; padding:8px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .np-case b { font-size:10px; text-transform:uppercase; letter-spacing:.08em; padding-top:3px; }
+    .np-by { font-size:11px; color:var(--muted); }
+    #reader .np-by a { color:var(--np-accent); font-weight:600; text-decoration:none; word-break:normal; }
+    .np-sec { padding:0 14px; margin-top:14px; }
+    .np-sec h4 { margin:0; font-size:12px; text-transform:uppercase; letter-spacing:.12em; border-top:2px solid var(--ink); padding-top:6px; }
+    .np-item { display:grid; gap:4px; padding:10px 0; border-bottom:1px solid var(--line); }
+    .np-item h3 { font-size:19px; line-height:1.2; margin:0; }
+    #reader .np-lead h2, #reader .np-item h3 { margin:0; }
+    .np-item .np-stand { font-size:15px; }
+    .np-quiet { list-style:none; margin:0; padding:0; font-size:13px; color:var(--muted); }
+    .np-quiet li { padding:6px 0; border-bottom:1px solid var(--line); } .np-quiet b { color:var(--ink); margin-right:4px; }
+    .np-note, .np-pad { padding:0 14px; font-size:13px; color:var(--muted); }
+    .np-last { margin:14px 14px 0; font-size:12px; font-style:italic; color:var(--muted); }
     footer { margin-top:24px; text-align:center; }
   </style>
 </head>
