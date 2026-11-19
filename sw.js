@@ -14,7 +14,17 @@ function openDb() {
   });
 }
 
+// The day's ideas arrive gzipped as base64 in "z"; unpack them into doc before saving.
+async function unpack(msg) {
+  if (!msg.z) return msg;
+  const bytes = Uint8Array.from(atob(msg.z), (c) => c.charCodeAt(0));
+  const doc = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).json();
+  const { z, ...rest } = msg;
+  return { ...rest, doc };
+}
+
 async function save(msg) {
+  msg = await unpack(msg);
   const db = await openDb();
   await new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
@@ -57,7 +67,7 @@ self.addEventListener("push", (event) => {
     clients.forEach((c) => c.postMessage({ type: "new-message" }));
     await self.registration.showNotification(msg.title || "INV", {
       body: msg.body || "",
-      tag: msg.id,          // the parts of one message replace each other: one notification
+      tag: msg.tag || msg.id,   // the parts of one message replace each other; the day's ideas share the briefing's
       data: { id: msg.id },
       icon: "icon-192.png",
     });

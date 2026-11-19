@@ -1,6 +1,7 @@
 // INV web app: a personal front page built from what arrives by push. Everything stays on this
-// phone (IndexedDB). Four tabs: Today (the latest briefing as a front page), Alerts, Reports
-// (past briefings and Saturday reports) and Settings. It never trades.
+// phone (IndexedDB). Five tabs: Today (the latest briefing as a front page), Alerts, Ideas
+// (companies ranked from their filings, ideas.js), Reports (past briefings and Saturday reports)
+// and Settings. It never trades.
 const DB = "inv", STORE = "messages";
 const $ = (id) => document.getElementById(id);
 const view = () => $("view");
@@ -213,6 +214,7 @@ function settingsView() {
 async function openMessage(id) {
   const m = cache.find((x) => x.id === id);
   if (!m) return go("today");
+  if (m.kind === "ideas") return go("ideas");
   const back = m.kind === "alert" ? "alerts" : "reports";
   if (m.doc && m.doc.type === "alert") {
     view().innerHTML = bar("Alert", back) + alertCard(m.doc);
@@ -273,16 +275,27 @@ function badge() {
 
 async function go(tab, id) {
   cache = await allMessages();
+  if (tab === "idea") {                                    // one company in the Ideas tab
+    document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "ideas"));
+    history.replaceState(null, "", "#ideas/" + encodeURIComponent(id));
+    ideaDetail(cache, id);
+    return badge();
+  }
   const name = id ? "open" : tab;
   document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === (id ? null : tab)));
   history.replaceState(null, "", id ? "#" + encodeURIComponent(id) : tab === "today" ? "./" : "#" + tab);
   if (name === "open") await openMessage(id);
-  else ({ today, alerts: alertsView, reports: reportsView, settings: settingsView }[tab] || today)();
+  else ({ today, alerts: alertsView, ideas: () => ideasView(cache), reports: reportsView, settings: settingsView }[tab] || today)();
   if (!id) window.scrollTo(0, 0);
   badge();
 }
 
 document.addEventListener("click", (e) => {
+  if (e.target.closest("a")) return;                       // links to filings open on their own
+  const idea = e.target.closest("[data-idea]"), seg = e.target.closest("[data-seg]"), sort = e.target.closest("[data-sort]");
+  if (seg) { setIdeasSeg(seg.dataset.seg); return go("ideas"); }
+  if (sort) { setIdeasSort(sort.dataset.sort); return go("ideas"); }
+  if (idea) return go("idea", idea.dataset.idea);
   const t = e.target.closest("[data-tab],[data-go],[data-open]");
   if (!t) return;
   if (t.dataset.open) go(null, t.dataset.open);
@@ -292,6 +305,7 @@ document.addEventListener("click", (e) => {
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (e) => {
     if (e.data && e.data.type === "open") go(null, e.data.id);
+    else if (/^#ideas/.test(location.hash)) { if (location.hash === "#ideas") go("ideas"); }
     else if (!/^#(alerts|reports|settings)|^#.+:/.test(location.hash)) go("today");
   });
 }
@@ -304,7 +318,8 @@ if ("serviceWorker" in navigator) {
     } catch (_) {}
   }
   const h = decodeURIComponent(location.hash.slice(1));
-  if (["alerts", "reports", "settings"].includes(h)) go(h);
+  if (["alerts", "ideas", "reports", "settings"].includes(h)) go(h);
+  else if (h.startsWith("ideas/")) go("idea", h.slice(6));
   else if (h) go(null, h);
   else go("today");
 })();

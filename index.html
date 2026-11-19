@@ -107,8 +107,91 @@
     .banner { margin:12px 16px 0; padding:10px 12px; border:1px solid var(--accent); border-radius:10px; font-size:14px; }
     .banner button { color:var(--accent); font-weight:600; }
 
+
+    /* Ideas tab (ideas.js): Finviz-style fast list, score shape and checks, letter grades, value range, statements */
+    :root { --upbg:#e5f4e4; --downbg:#fbebeb; --mid:#8a6d1c; --midbg:#f9eeda; --tint:#e7f1fb; }
+    @media (prefers-color-scheme: dark) { :root { --upbg:#173226; --downbg:#3a1e20; --mid:#e3c26a; --midbg:#352d17; --tint:#1d2a38; } }
+    .sub { margin:6px 16px 0; font-size:13px; color:var(--muted); }
+    .lede { margin:10px 16px 0; font:15px/1.4 var(--serif); color:var(--ink2); }
+    .pad { padding:12px 16px; } .fine { margin:6px 16px 0; font-size:12px; }
+    .seg3 { display:grid; grid-template-columns:1fr 1.25fr .7fr; margin:10px 16px 0; background:var(--line); border-radius:9px; padding:2px; }
+    .seg3 button { text-align:center; font-size:13px; font-weight:600; padding:6px 2px; border-radius:7px; color:var(--ink2); }
+    .seg3 button.on { background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.12); }
+    .seg3 i { font-style:normal; color:var(--muted); font-weight:500; }
+    .card { margin:10px 16px 0; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; display:grid; gap:8px; text-align:left; cursor:pointer; }
+    .card .top { display:grid; grid-template-columns:64px 1fr; gap:12px; align-items:center; }
+    .card h3 { font:700 18px/1.2 var(--serif); margin:2px 0; }
+    .tk { font:600 12px var(--mono); color:var(--muted); }
+    .rk { display:flex; gap:8px; align-items:baseline; font-size:12px; } .rk b { font:700 13px var(--mono); }
+    .tag { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .tag.go { color:var(--up); } .tag.watch { color:var(--mid); } .tag.out { color:var(--muted); }
+    .mv { font:600 11px var(--mono); color:var(--muted); } .mv.new { color:var(--accent); }
+    .gap { margin:0; font-size:14px; color:var(--ink2); } .gap b { color:var(--down); }
+    .meters { display:grid; gap:4px; }
+    .meter { display:grid; grid-template-columns:62px 1fr 28px; gap:8px; align-items:center; font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+    .meter div { height:6px; border-radius:3px; background:var(--line); overflow:hidden; } .meter i { display:block; height:100%; }
+    .meter .heat { background:var(--alert); } .meter .str { background:var(--accent); }
+    .meter b { font:600 12px var(--mono); color:var(--ink); text-align:right; }
+    ul.dr { list-style:none; margin:0; padding:0; font-size:13px; display:grid; gap:3px; }
+    ul.dr li { display:grid; grid-template-columns:14px 1fr; gap:4px; } ul.dr a { color:var(--ink2); }
+    ul.dr .p, .rr .up { color:var(--up); } ul.dr .n, .rr .down { color:var(--down); } ul.dr .o { color:var(--muted); }
+    .radar text { font:600 10px var(--sans); fill:var(--muted); }
+    .hero2 { display:grid; justify-items:center; gap:6px; padding:8px 16px 0; text-align:center; }
+    .hero2 h2 { font:700 26px/1.1 var(--serif); margin:4px 0 2px; } .hero2 .rk { justify-content:center; }
+    .grades { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; margin:12px 16px 0; }
+    .grades div { text-align:center; border-radius:8px; padding:5px 0; display:grid; font-size:9px; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--muted); background:var(--card); border:1px solid var(--line); }
+    .grades b { font:700 18px var(--sans); color:var(--ink); } .grades i { font:normal 10px var(--mono); }
+    .gA { background:var(--upbg) !important; } .gA b, span.gA { color:var(--up); }
+    .gB { background:var(--tint) !important; } .gB b, span.gB { color:var(--accent); }
+    .gC { background:var(--midbg) !important; } .gC b, span.gC { color:var(--mid); }
+    .gD b, .gE b, span.gD, span.gE { color:var(--down); }
+    .note2 { margin:12px 16px 0; font:15px/1.4 var(--serif); color:var(--ink2); } .note2 b { color:var(--ink); }
+    .hero2 + .grades + .note2 + .meters { margin:10px 16px 0; }
+    .isec { margin:18px 16px 0; }
+    .isec h4 { margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.1em; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+    .isec h4 span { font-weight:500; text-transform:none; letter-spacing:0; color:var(--muted); font-size:12px; text-align:right; }
+    .box { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:4px 12px; }
+    .box.flush { margin:12px 16px 0; padding:0 8px; overflow-x:auto; }
+    .box p { margin:8px 0; font-size:14px; }
+    .box .kv { padding:8px 0; border-top:0; border-bottom:1px solid var(--line); font-size:14px; }
+    .box .kv:last-child { border-bottom:0; }
+    .fast { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+    .fast th { text-align:right; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; padding:6px 3px; border-bottom:1px solid var(--line); white-space:nowrap; }
+    .fast th button { font:inherit; color:inherit; text-transform:inherit; letter-spacing:inherit; } .fast th button.on { color:var(--accent); }
+    .fast th:first-child, .fast td:first-child { text-align:left; }
+    .fast td { text-align:right; padding:8px 3px; border-bottom:1px solid var(--line); font-family:var(--mono); cursor:pointer; }
+    .fast tr:last-child td { border-bottom:0; } .fast td.lt span { margin-left:3px; font-weight:700; }
+    .dotl { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--line); vertical-align:1px; }
+    .dotl.go { background:var(--up); } .dotl.watch { background:var(--mid); }
+    .pv { display:grid; gap:6px; padding:8px 0; } .pv p { margin:0; }
+    .pvbar { position:relative; height:12px; border-radius:6px; background:var(--line); margin-top:6px; }
+    .pvbar span { position:absolute; top:0; height:12px; }
+    .pvbar .z1 { background:var(--up); opacity:.55; border-radius:6px 0 0 6px; } .pvbar .z2 { background:var(--upbg); }
+    .pvbar .z3 { background:var(--midbg); } .pvbar .z4 { background:var(--downbg); border-radius:0 6px 6px 0; }
+    .pvbar i { position:absolute; top:-5px; width:3px; height:22px; margin-left:-1px; background:var(--ink); border-radius:2px; }
+    .pv .lab { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); font-family:var(--mono); }
+    .rr { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:8px 0; }
+    .rr h5 { margin:0 0 6px; font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+    ul.plain { margin:0; padding-left:16px; font-size:13px; color:var(--ink2); display:grid; gap:4px; }
+    .box ul.plain { padding-top:8px; padding-bottom:8px; }
+    .chk { display:grid; grid-template-columns:22px 1fr auto; gap:8px; padding:9px 0; border-bottom:1px solid var(--line); align-items:start; }
+    .chk:last-child { border-bottom:0; } .chk .q { font-weight:600; font-size:14px; } .chk .a { font-size:12.5px; color:var(--muted); }
+    .chk .v { font:600 12px var(--mono); text-align:right; max-width:9em; }
+    .dot { width:20px; height:20px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:800; }
+    .dot.y { background:var(--upbg); color:var(--up); } .dot.n { background:var(--downbg); color:var(--down); } .dot.u { background:var(--midbg); color:var(--mid); }
+    ul.ev { list-style:none; margin:0; padding:0; font-size:13px; }
+    ul.ev li { padding:8px 0; border-bottom:1px solid var(--line); display:grid; grid-template-columns:1fr auto; gap:8px; }
+    ul.ev li:last-child { border-bottom:0; } ul.ev a { font-weight:600; text-decoration:none; white-space:nowrap; }
+    ul.ev .r { text-align:right; font-family:var(--mono); font-size:12px; }
+    .stt { overflow-x:auto; padding:6px 0; }
+    .stt table { border-collapse:collapse; width:100%; font-size:12px; font-variant-numeric:tabular-nums; }
+    .stt th { font-size:10px; color:var(--muted); text-align:right; padding:4px; } .stt th:first-child { text-align:left; }
+    .stt td { text-align:right; padding:5px 4px; border-top:1px solid var(--line); font-family:var(--mono); vertical-align:bottom; white-space:nowrap; }
+    .stt td:first-child { text-align:left; font-family:var(--sans); white-space:normal; }
+    .stt td i { display:block; width:60%; margin:0 0 2px auto; background:var(--accent); opacity:.45; border-radius:2px; } .stt td i.neg { background:var(--down); }
+
     /* Tab bar */
-    nav.tabs { position:fixed; left:0; right:0; bottom:0; display:grid; grid-template-columns:repeat(4, 1fr);
+    nav.tabs { position:fixed; left:0; right:0; bottom:0; display:grid; grid-template-columns:repeat(5, 1fr);
                background:var(--paper); border-top:1px solid var(--line); padding:6px 0 calc(6px + env(safe-area-inset-bottom)); z-index:5; }
     nav.tabs button { display:grid; justify-items:center; gap:2px; font-size:11px; color:var(--muted); font-weight:600; position:relative; }
     nav.tabs button.on { color:var(--accent); }
@@ -122,11 +205,13 @@
   <nav class="tabs" aria-label="Sections">
     <button data-tab="today" class="on"><svg viewBox="0 0 24 24"><path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 8h3v9a2 2 0 0 1-2 2"/><path d="M7 9h7M7 12h7M7 15h4"/></svg>Today</button>
     <button data-tab="alerts"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>Alerts<span id="badge" class="badge hidden"></span></button>
+    <button data-tab="ideas"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/><path d="M14 4l3 3 4-5"/></svg>Ideas</button>
     <button data-tab="reports"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h7M9 15h7M9 18h4"/></svg>Reports</button>
     <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
   </nav>
 
   <script src="config.js"></script>
+  <script src="ideas.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
