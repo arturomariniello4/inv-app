@@ -93,8 +93,8 @@ function ideasDoc(cache) {
 function ideasView(cache) {
   const doc = ideasDoc(cache);
   if (!doc) {
-    view().innerHTML = bar("Ideas") + `<div class="empty"><h2>Your first ideas arrive with tonight's briefing</h2>
-      <p class="muted">Companies from your watchlist, ranked from their official filings: what is worth reading now, what is strong but missing one thing, and the figures behind each.</p></div>`;
+    view().innerHTML = bar("Ideas") + `<div class="empty"><h2>Your ranked list arrives with the midday read</h2>
+      <p class="muted">Every day at about 11:45, the companies on your watchlist are ranked from their official filings: what is worth reading now, and what is strong but held back by one weak point. Tap a company for its grades, value range and statements.</p></div>`;
     return;
   }
   const by = Object.fromEntries(doc.co.map((c) => [c.t, c]));
