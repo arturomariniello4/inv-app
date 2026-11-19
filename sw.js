@@ -1,4 +1,5 @@
 // Service worker: receives encrypted pushes, keeps them on the phone, shows a notification.
+// v2: new INV logo icons (2026-11-19)
 const DB = "inv", STORE = "messages", PARTS = "parts";
 
 function openDb() {
@@ -69,7 +70,7 @@ self.addEventListener("push", (event) => {
       body: msg.body || "",
       tag: msg.tag || msg.id,   // the parts of one message replace each other; the day's ideas share the briefing's
       data: { id: msg.id },
-      icon: "icon-192.png",
+      icon: "icon-192.png?v=2",
     });
   })());
 });
