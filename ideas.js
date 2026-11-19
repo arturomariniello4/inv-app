@@ -31,13 +31,13 @@ function radar(c, size) {
     <polygon points="${shape}" fill="${tone}" fill-opacity=".22" stroke="${tone}" stroke-width="1.6"/>${labels}</svg>`;
 }
 
-// The company's own logo with its score shape as a small badge; the full shape when no logo is bundled
-// (or the image fails to load, e.g. offline before it was ever cached).
+// The company's own logo on the list (its score shape is on the company page); the shape when no logo is
+// bundled or the image fails to load (e.g. offline before it was ever cached).
 function mark(c) {
   const f = typeof LOGOS !== "undefined" && LOGOS[c.t];
   if (!f) return radar(c, 64);
   return `<div class="logo"><img src="logos/${esc(f)}" alt="${esc(c.name)} logo" loading="lazy"
-    onerror="this.parentNode.outerHTML=this.parentNode.querySelector('template').innerHTML"><span class="mini">${radar(c, 22)}</span>
+    onerror="this.parentNode.outerHTML=this.parentNode.querySelector('template').innerHTML">
     <template>${radar(c, 64)}</template></div>`;
 }
 
