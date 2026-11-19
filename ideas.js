@@ -37,7 +37,7 @@ function mark(c) {
   const f = typeof LOGOS !== "undefined" && LOGOS[c.t];
   if (!f) return radar(c, 64);
   return `<div class="logo"><img src="logos/${esc(f)}" alt="${esc(c.name)} logo" loading="lazy"
-    onerror="this.parentNode.outerHTML=this.parentNode.querySelector('template').innerHTML"><span class="mini">${radar(c, 30)}</span>
+    onerror="this.parentNode.outerHTML=this.parentNode.querySelector('template').innerHTML"><span class="mini">${radar(c, 22)}</span>
     <template>${radar(c, 64)}</template></div>`;
 }
 
