@@ -127,8 +127,31 @@ function briefingBody(doc, opts = {}) {
 }
 
 function alertRows(list) {
-  return list.map((m) => `<button class="row" data-open="${esc(m.id)}"><span><div class="kicker alert">Alert · ${esc(when(m.received))}</div>
-    <div class="t">${esc(m.title)}</div><div class="muted">${esc(m.body)}</div></span><span class="chev">›</span></button>`).join("");
+  return list.map((m) => {
+    const a = m.doc && m.doc.type === "alert" ? m.doc : null;
+    const kicker = a ? a.tags.join(" · ") : "Alert";
+    return `<button class="row" data-open="${esc(m.id)}"><span><div class="kicker alert">${esc(kicker)} · ${esc(when(m.received))}</div>
+    <div class="t">${esc(a ? a.headline : m.title)}</div><div class="muted">${esc(a ? a.sure.label + " · " + a.sure.short : m.body)}</div></span><span class="chev">›</span></button>`;
+  }).join("");
+}
+
+// One alert, laid out like a news card: tags, headline, summary, why, what you could do, both cases, how sure.
+function alertCard(a) {
+  const block = (h, text) => text ? `<div class="blk"><h3>${h}</h3><p>${esc(text)}</p></div>` : "";
+  const cases = a.up || a.down ? `<div class="blk case"><b class="up">Bull</b><span>${esc(a.up)}</span><b class="down">Bear</b><span>${esc(a.down)}</span></div>` : "";
+  const also = (a.also || []).length ? `<div class="blk"><h3>Also reported today${a.also_from ? " (" + esc(a.also_from) + ")" : ""}</h3>
+      <ul>${a.also.map((h) => `<li>${esc(h)}</li>`).join("")}</ul></div>` : "";
+  const src = a.source || {};
+  return `<article class="acard">
+    <div class="tags">${a.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}${a.running ? `<span class="tag urg">${esc(a.running)}</span>` : ""}</div>
+    <h2>${esc(a.headline)}</h2>
+    ${a.standfirst ? `<p class="stand">${esc(a.standfirst)}</p>` : ""}
+    ${block("Why it matters to you", a.why)}${block("What you could do", a.todo)}${cases}
+    <div class="blk"><h3>How sure</h3><p class="conf"><span class="dots">${esc(a.sure.dots)}</span><span><b>${esc(a.sure.label)}.</b> ${esc(a.sure.reason)}</span></p></div>
+    ${also}
+    <div class="src"><span>${esc(src.name || "")}${src.published ? " · " + esc(when(src.published)) : ""}</span>
+      ${src.link ? `<a class="btn" href="${esc(safeUrl(src.link))}" target="_blank" rel="noopener">Read on ${esc(src.name || "source")}</a>` : ""}</div>
+    <p class="last">${esc(a.last_line || "Information only. You decide and place every order.")}</p></article>`;
 }
 
 function today() {
@@ -191,7 +214,9 @@ async function openMessage(id) {
   const m = cache.find((x) => x.id === id);
   if (!m) return go("today");
   const back = m.kind === "alert" ? "alerts" : "reports";
-  if (m.doc) {
+  if (m.doc && m.doc.type === "alert") {
+    view().innerHTML = bar("Alert", back) + alertCard(m.doc);
+  } else if (m.doc) {
     view().innerHTML = bar("Evening briefing", back) + masthead(m.doc.dateline, `${m.doc.time} Luxembourg`) + briefingBody(m.doc);
   } else {
     view().innerHTML = bar(m.kind === "weekly" ? "Saturday report" : m.kind === "alert" ? "Alert" : "Evening briefing", back)
