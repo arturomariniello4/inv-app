@@ -31,6 +31,18 @@ function radar(c, size) {
     <polygon points="${shape}" fill="${tone}" fill-opacity=".22" stroke="${tone}" stroke-width="1.6"/>${labels}</svg>`;
 }
 
+// The company's own logo with its score shape as a small badge; the full shape when no logo is bundled
+// (or the image fails to load, e.g. offline before it was ever cached).
+function mark(c) {
+  const f = typeof LOGOS !== "undefined" && LOGOS[c.t];
+  if (!f) return radar(c, 64);
+  return `<div class="logo"><img src="logos/${esc(f)}" alt="${esc(c.name)} logo" loading="lazy"
+    onerror="this.parentNode.outerHTML=this.parentNode.querySelector('template').innerHTML"><span class="mini">${radar(c, 30)}</span>
+    <template>${radar(c, 64)}</template></div>`;
+}
+
+function heldTag(c) { return c.held ? '<span class="held">You hold it</span>' : ""; }
+
 function gradeChips(c) {
   return `<div class="grades">${FAM.map(([k, n]) => { const [s, g] = c.g[k] || []; return `<div class="g${esc(g || "x")}"><b>${esc(g || "–")}</b>${n}${s == null ? "" : `<i>${s}</i>`}</div>`; }).join("")}</div>`;
 }
@@ -48,9 +60,9 @@ function drivers(c) {
 
 function card(c, opts = {}) {
   return `<div class="card idea" role="button" tabindex="0" data-idea="${esc(c.t)}">
-    <div class="top">${radar(c, 64)}<div>
+    <div class="top">${mark(c)}<div>
       <div class="rk">${c.r ? `<b>#${c.r}</b>${moveTag(c.mv)}` : ""}${labelTag(c.lab)}</div>
-      <h3>${esc(c.name)} <span class="tk">${esc(c.t)}</span></h3>
+      <h3>${esc(c.name)} <span class="tk">${esc(c.t)}</span>${heldTag(c)}</h3>
       <div class="muted">${esc(c.role)}${c.sec ? " · " + esc(c.sec) : ""} · return ${pct(c.er.b)} vs ${pct(c.hur, 0)} bar</div></div></div>
     ${opts.gap ? `<p class="gap"><b>But:</b> ${esc(c.gap)}</p>` : meters(c) + drivers(c)}
   </div>`;
@@ -61,7 +73,7 @@ function fastList(cos) {
   const rows = [...cos].sort((a, b) => { const x = key[ideasSort](a), y = key[ideasSort](b); return x < y ? -1 : x > y ? 1 : 0; });
   const th = (k, label) => `<th><button data-sort="${k}" class="${ideasSort === k ? "on" : ""}">${label}</button></th>`;
   return `<div class="box flush"><table class="fast"><thead><tr>${th("t", "Company")}<th>Q S G V O</th>${th("ret", "Return")}${th("heat", "Heat")}${th("strength", "Str")}</tr></thead><tbody>
-    ${rows.map((c) => `<tr data-idea="${esc(c.t)}"><td><b>${esc(c.t)}</b> <span class="dotl ${(LABEL[c.lab] || [])[1] || ""}"></span></td>
+    ${rows.map((c) => `<tr data-idea="${esc(c.t)}"><td>${typeof LOGOS !== "undefined" && LOGOS[c.t] ? `<img class="tlogo" src="logos/${esc(LOGOS[c.t])}" alt="" loading="lazy" onerror="this.remove()">` : ""}<b>${esc(c.t)}</b>${c.held ? ' <span class="held">held</span>' : ""} <span class="dotl ${(LABEL[c.lab] || [])[1] || ""}"></span></td>
       <td class="lt">${FAM.map(([k]) => `<span class="g${esc((c.g[k] || [])[1] || "x")}">${esc((c.g[k] || [])[1] || "–")}</span>`).join("")}</td>
       <td class="${c.er.b != null && c.er.b >= c.hur ? "up" : ""}">${pct(c.er.b)}</td><td>${c.h ?? "–"}</td><td>${c.s ?? "–"}</td></tr>`).join("")}
     </tbody></table></div><p class="muted fine">Return: expected yearly return in the base case; green when it clears your bar (8% core, 15% satellite). Tap a column to sort.</p>`;
@@ -161,7 +173,7 @@ function ideaDetail(cache, ticker) {
   if (!c) return ideasView(cache);
   const head = `${bar(c.t, "ideas")}<div class="hero2">${radar(c, 220)}<div>
       <div class="rk">${c.r ? `<b>#${c.r} must read</b>${moveTag(c.mv)}` : ""}${labelTag(c.lab)}</div>
-      <h2>${esc(c.name)}</h2><div class="muted">${esc(c.t)} · ${esc(c.role)}${c.sec ? " · " + esc(c.sec) : ""} · ${esc(c.conf)} confidence</div></div></div>
+      <h2>${esc(c.name)}</h2>${heldTag(c)}<div class="muted">${esc(c.t)} · ${esc(c.role)}${c.sec ? " · " + esc(c.sec) : ""} · ${esc(c.conf)} confidence</div></div></div>
     ${gradeChips(c)}<div class="note2"><b>Our view.</b> ${esc(c.verdict)}</div>${meters(c)}`;
   if (!c.d) {
     view().innerHTML = head + `<p class="muted pad">The full detail did not fit today's push; it is in the Saturday report.</p>`;

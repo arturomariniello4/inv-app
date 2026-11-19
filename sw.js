@@ -1,5 +1,6 @@
 // Service worker: receives encrypted pushes, keeps them on the phone, shows a notification.
 // v2: new INV logo icons (2026-11-19)
+// v3: company logos in the Ideas list, kept on the phone after the first view so they also show offline
 const DB = "inv", STORE = "messages", PARTS = "parts";
 
 function openDb() {
@@ -53,6 +54,19 @@ async function addPart(msg) {
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+
+// Company logos (bundled with the app, same address): cache first, so they show offline and load instantly.
+self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
+  if (event.request.method !== "GET" || url.origin !== self.location.origin || !/\/logos\/[^/]+\.(png|svg|jpg|gif|ico|webp)$/.test(url.pathname)) return;
+  event.respondWith(caches.open("inv-logos-v1").then(async (cache) => {
+    const hit = await cache.match(event.request);
+    if (hit) return hit;
+    const res = await fetch(event.request);
+    if (res.ok) cache.put(event.request, res.clone());
+    return res;
+  }));
+});
 
 self.addEventListener("push", (event) => {
   let msg;

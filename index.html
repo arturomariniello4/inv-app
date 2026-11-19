@@ -136,6 +136,11 @@
     ul.dr li { display:grid; grid-template-columns:14px 1fr; gap:4px; } ul.dr a { color:var(--ink2); }
     ul.dr .p, .rr .up { color:var(--up); } ul.dr .n, .rr .down { color:var(--down); } ul.dr .o { color:var(--muted); }
     .radar text { font:600 10px var(--sans); fill:var(--muted); }
+    .logo { position:relative; width:64px; height:64px; }
+    .logo img { width:64px; height:64px; border-radius:16px; object-fit:contain; background:#fff; box-shadow:0 0 0 1px var(--line) inset; }
+    .logo .mini { position:absolute; right:-6px; bottom:-6px; width:30px; height:30px; background:var(--card); border-radius:50%; box-shadow:0 0 0 1px var(--line); }
+    .tlogo { width:18px; height:18px; border-radius:5px; object-fit:contain; background:#fff; vertical-align:-4px; margin-right:5px; box-shadow:0 0 0 1px var(--line) inset; }
+    .held { display:inline-block; font:600 11px var(--sans); padding:2px 7px; border-radius:999px; background:var(--up); color:#fff; margin-left:6px; vertical-align:2px; white-space:nowrap; }
     .hero2 { display:grid; justify-items:center; gap:6px; padding:8px 16px 0; text-align:center; }
     .hero2 h2 { font:700 26px/1.1 var(--serif); margin:4px 0 2px; } .hero2 .rk { justify-content:center; }
     .grades { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; margin:12px 16px 0; }
@@ -211,6 +216,7 @@
   </nav>
 
   <script src="config.js"></script>
+  <script src="logos/index.js"></script>
   <script src="ideas.js"></script>
   <script src="app.js"></script>
 </body>
