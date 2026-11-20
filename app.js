@@ -315,6 +315,8 @@ if ("serviceWorker" in navigator) {
     try {
       reg = await navigator.serviceWorker.register("sw.js");
       subscribed = !!(await reg.pushManager.getSubscription()) && Notification.permission === "granted";
+      // a report whose box could not be fetched when it arrived is opened now
+      navigator.serviceWorker.ready.then((r) => r.active && r.active.postMessage({ type: "open-waiting" })).catch(() => {});
     } catch (_) {}
   }
   const h = decodeURIComponent(location.hash.slice(1));

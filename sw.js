@@ -1,6 +1,8 @@
 // Service worker: receives encrypted pushes, keeps them on the phone, shows a notification.
 // v2: new INV logo icons (2026-11-19)
 // v3: company logos in the Ideas list, kept on the phone after the first view so they also show offline
+// v4: the notification always shows, even if saving a part fails (iOS stops pushes to an app that skips one)
+// v5: a long report arrives as ONE push with a key; its content is fetched from an encrypted box and opened here
 const DB = "inv", STORE = "messages", PARTS = "parts";
 
 function openDb() {
@@ -52,6 +54,56 @@ async function addPart(msg) {
   return JSON.parse(all.map((p) => p.chunk).join(""));
 }
 
+// A boxed message: the push carries box = {u: address, k: AES-256-GCM key, n: nonce}; the box holds the
+// whole message, gzipped then encrypted. Only ciphertext sits at the public address.
+const unb64 = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
+async function openBox(box) {
+  const res = await fetch(box.u, { cache: "no-store" });
+  if (!res.ok) throw new Error("box " + res.status);
+  const key = await crypto.subtle.importKey("raw", unb64(box.k), "AES-GCM", false, ["decrypt"]);
+  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(box.n) }, key, await res.arrayBuffer());
+  return new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream("gzip"))).json();
+}
+
+async function getMessage(id) {
+  const db = await openDb();
+  return new Promise((resolve) => {
+    const req = db.transaction(STORE).objectStore(STORE).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => resolve(null);
+  });
+}
+
+async function receiveBox(msg) {
+  try {
+    await save(await openBox(msg.box));
+  } catch (err) {                       // offline or not there yet: keep a note and try again when the app opens
+    const had = await getMessage(msg.id);
+    if (!had || had.waiting) await save({ ...msg, waiting: true });
+  }
+}
+
+async function openWaiting() {
+  const db = await openDb();
+  const all = await new Promise((resolve) => {
+    const req = db.transaction(STORE).objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+  let opened = 0;
+  for (const m of all.filter((x) => x.waiting && x.box)) {
+    try { await save(await openBox(m.box)); opened++; } catch (_) {}
+  }
+  return opened;
+}
+
+self.addEventListener("message", (event) => {
+  if (!event.data || event.data.type !== "open-waiting") return;
+  event.waitUntil((async () => {
+    if (await openWaiting()) (await self.clients.matchAll({ type: "window" })).forEach((c) => c.postMessage({ type: "new-message" }));
+  })());
+});
+
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
@@ -72,14 +124,25 @@ self.addEventListener("push", (event) => {
   let msg;
   try { msg = event.data.json(); } catch (_) { msg = { id: "msg:" + Date.now(), kind: "alert", title: "INV", body: event.data ? event.data.text() : "", text: "" }; }
   event.waitUntil((async () => {
-    if (msg.parts) {
-      const whole = await addPart(msg);
-      if (whole) await save(whole);
-    } else {
-      await save(msg);
+    if (msg.box) {                      // one push for the whole report: show it first, then open the box
+      await self.registration.showNotification(msg.title || "INV", {
+        body: msg.body || "", tag: msg.tag || msg.id, data: { id: msg.id }, icon: "icon-192.png?v=2" });
+      await receiveBox(msg);
+      (await self.clients.matchAll({ type: "window" })).forEach((c) => c.postMessage({ type: "new-message" }));
+      return;
     }
-    const clients = await self.clients.matchAll({ type: "window" });
-    clients.forEach((c) => c.postMessage({ type: "new-message" }));
+    try {
+      if (msg.parts) {
+        const whole = await addPart(msg);
+        if (whole) await save(whole);
+      } else {
+        await save(msg);
+      }
+      const clients = await self.clients.matchAll({ type: "window" });
+      clients.forEach((c) => c.postMessage({ type: "new-message" }));
+    } catch (err) {
+      console.error("INV: could not save a push", err);   // the notification below must still show
+    }
     await self.registration.showNotification(msg.title || "INV", {
       body: msg.body || "",
       tag: msg.tag || msg.id,   // the parts of one message replace each other; the day's ideas share the briefing's
