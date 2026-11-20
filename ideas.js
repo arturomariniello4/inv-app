@@ -103,7 +103,11 @@ function ideasDoc(cache) {
 }
 
 function ideasView(cache) {
-  const doc = ideasDoc(cache);
+  const doc = ideasDoc(cache), rd = radarDoc(cache);
+  if (!doc && rd) {                                   // the briefing brought the Radar before the first midday read
+    view().innerHTML = bar("Ideas") + `<p class="sub">Radar · ${rd.e.length} entries · ranked list at 11:45</p>` + radarList(cache);
+    return;
+  }
   if (!doc) {
     view().innerHTML = bar("Ideas") + `<div class="empty"><h2>Your ranked list arrives with the midday read</h2>
       <p class="muted">Every day at about 11:45, the companies on your watchlist are ranked from their official filings: what is worth reading now, and what is strong but held back by one weak point. Tap a company for its grades, value range and statements.</p></div>`;
@@ -113,7 +117,9 @@ function ideasView(cache) {
   const worth = doc.co.filter((c) => c.lab === "worth_a_deep_dive").length;
   const seg = (k, label, n) => `<button data-seg="${k}" class="${ideasSeg === k ? "on" : ""}">${label}${n != null ? ` <i>${n}</i>` : ""}</button>`;
   let body;
-  if (ideasSeg === "but") {
+  if (ideasSeg === "radar") {
+    body = radarList(cache);
+  } else if (ideasSeg === "but") {
     const list = doc.but.map((t) => by[t]).filter(Boolean);
     body = `<p class="lede">Strong businesses with exactly one weak point. Each could become great if that point improves.</p>`
       + (list.length ? list.map((c) => card(c, { gap: true })).join("") : '<p class="muted pad">None today.</p>');
@@ -125,8 +131,8 @@ function ideasView(cache) {
       + (list.length ? list.map((c) => card(c)).join("") : '<p class="muted pad">Nothing reaches the bar today.</p>');
   }
   view().innerHTML = bar("Ideas") + `<p class="sub">${esc(doc.date)} · ${worth} worth a deep dive · ${doc.co.length} companies</p>
-    <div class="seg3">${seg("must", "Must read", doc.must.length)}${seg("but", "Attractive, but…", doc.but.length)}${seg("all", "All")}</div>
-    ${body}${raisesBlock(doc)}${trackBlock(doc)}
+    <div class="seg3 four">${seg("must", "Must read", doc.must.length)}${seg("but", "Attractive…", doc.but.length)}${seg("radar", "Radar", rd ? rd.e.length : 0)}${seg("all", "All")}</div>
+    ${body}${ideasSeg === "radar" ? "" : raisesBlock(doc) + trackBlock(doc)}
     ${doc.cut ? `<p class="muted fine">${doc.cut} screened-out companies were left out to fit the phone; the Saturday report lists them.</p>` : ""}
     <p class="last">Information only. The strongest label is “worth a deep dive”, never “buy”. You decide and place every order.</p>`;
 }
@@ -201,6 +207,53 @@ function ideaDetail(cache, ticker) {
     ${(c.flags || []).length ? `<section class="isec"><h4>Warning signs</h4><div class="box"><ul class="plain">${c.flags.map((f) => `<li>${esc(f)}</li>`).join("")}</ul></div></section>` : ""}
     <p class="by">Source: ${esc(d.src)}. Prices: Stooq or Yahoo Finance. Grades compare against the other companies in your list.</p>
     <p class="last">Information only. You decide and place every order.</p>`;
+  window.scrollTo(0, 0);
+}
+
+// ---- Radar: early signals from official filings (first listings, private rounds, insider buys, R&D awards) ----
+const RGROUP = [["ipo", "Going public", "SEC S-1 / F-1"], ["private", "Private rounds", "SEC Form D"],
+  ["public", "Insiders buying", "Form 4, open market"], ["award", "Grants and contracts", "US R&D awards"]];
+const CONF = { Low: "lo", Medium: "me", High: "hi" };
+
+// The newest Radar: it rides in both the 11:45 read and the 22:30 briefing.
+function radarDoc(cache) {
+  return cache.filter((m) => m.doc && m.doc.radar).map((m) => m.doc.radar)
+    .sort((a, b) => (b.asof || "").localeCompare(a.asof || ""))[0] || null;
+}
+
+function radarRow(e) {
+  return `<div class="rrow" role="button" tabindex="0" data-radar="${esc(e.k)}"><div class="h"><b>${esc(e.n)}${e.new ? ' <span class="rnew">NEW</span>' : ""}</b><span class="m">${esc(e.f)}</span></div>
+    <p>${(e.th || []).slice(0, 2).map((t) => `<span class="rtag th${e.my ? " my" : ""}">${esc(t)}</span>`).join("")}<span class="rtag ${CONF[e.c] || "lo"}">${esc(e.c)}</span>${esc(e.x)}</p></div>`;
+}
+
+function radarList(cache) {
+  const rd = radarDoc(cache);
+  if (!rd || !rd.e.length) return `<p class="lede">Early signals from official filings will appear here: first listings, private rounds, insiders buying and R&D awards.</p>`;
+  const asof = new Date(rd.asof);
+  const groups = RGROUP.map(([g, title, src]) => { const es = rd.e.filter((e) => e.g === g); return es.length
+    ? `<section class="isec"><h4>${title} <span>${src}</span></h4><div class="box">${es.map(radarRow).join("")}</div></section>` : ""; }).join("");
+  return `<p class="lede">Early signals from official filings: companies that might grow into something. Nothing here is a buy; it is what to start watching.</p>
+    <p class="sub">As of ${esc(asof.toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" }))} · ${rd.e.filter((e) => e.new).length} new today · themes you follow are underlined</p>
+    ${groups}<p class="muted fine">Confidence counts independent official records in the last year: one is Low, two Medium, three High. Every entry is checked again after one and two years: did it list, raise again, or fold?</p>`;
+}
+
+function radarDetail(cache, key) {
+  const rd = radarDoc(cache), e = rd && rd.e.find((x) => x.k === key);
+  if (!e) return ideasView(cache);
+  const d = e.d, n = { Low: 1, Medium: 2, High: 3 }[e.c] || 1;
+  const head = `${bar("Radar", "ideas")}<div class="rhead"><h2>${esc(e.n)}</h2><div class="muted">${esc((RGROUP.find((g) => g[0] === e.g) || [])[1] || "")}${d && d.ind ? " · " + esc(d.ind) : ""}${d && d.where ? " · " + esc(d.where) : ""}</div>
+    <p>${(e.th || []).map((t) => `<span class="rtag th${e.my ? " my" : ""}">${esc(t)}</span>`).join("")}<span class="rtag ${CONF[e.c]}">${esc(e.c)} confidence</span></p></div>`;
+  if (!d) { view().innerHTML = head + `<p class="pad">${esc(e.x)}</p><p class="muted pad">The full detail did not fit this push; it is in the Saturday report.</p>`; return window.scrollTo(0, 0); }
+  view().innerHTML = head + `
+    <section class="isec"><h4>What happened <span>official filings</span></h4><div class="box">
+      ${d.facts.map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("")}
+      <div class="kv"><span>Sources</span><span>${d.src.map(([l, u]) => `<a href="${esc(safeUrl(u))}" target="_blank" rel="noopener">${esc(l)}</a>`).join("<br>")}</span></div></div></section>
+    <section class="isec"><h4>Bull and bear case</h4><div class="box"><div class="rr"><div><h5 class="up">Bull case</h5><p>${esc(d.bull)}</p></div><div><h5 class="down">Bear case</h5><p>${esc(d.bear)}</p></div></div></div></section>
+    <section class="isec"><h4>Confidence <span>${esc(e.c)}</span></h4><div class="box"><div class="cbar">${[1, 2, 3].map((i) => `<i class="${i <= n ? "f" : ""}"></i>`).join("")}</div>
+      <p>${n >= 3 ? "Three or more independent official records point the same way." : `${n === 1 ? "One official record so far." : "Two independent official records agree."} It rises with each new kind of evidence: another round, a first-listing filing, insider buys or an R&D award.`}</p></div></section>
+    <section class="isec"><h4>What your rules allow</h4><div class="box"><p>${esc(d.rules)}</p></div></section>
+    <section class="isec"><h4>Watch for next</h4><div class="box"><ul class="plain">${d.next.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div></section>
+    <p class="last">Information only. Not a buy: you decide and place every order.</p>`;
   window.scrollTo(0, 0);
 }
 

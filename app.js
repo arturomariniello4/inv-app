@@ -121,11 +121,21 @@ function briefingBody(doc, opts = {}) {
   return `${ticker(doc.markets)}
     ${opts.alerts || ""}
     ${doc.lead ? story(doc.lead, true) : '<p class="note">A quiet day: nothing passed the importance threshold.</p>'}
-    ${sections}${quiet}
+    ${sections}${radarToday(doc)}${quiet}
     ${doc.later ? `<p class="note">${doc.later} more stories are saved for the Saturday report.</p>` : ""}
     ${doc.watchlist ? `<p class="note">${esc(doc.watchlist)}</p>` : ""}
     ${opts.footer || ""}
     <p class="last">${esc(doc.last_line || "Information only. You decide and place every order.")}</p>`;
+}
+
+// "On the radar today": entries with a filing today; tapping opens the Radar entry in the Ideas tab.
+function radarToday(doc) {
+  const keys = doc.radar_today || [], rd = doc.radar;
+  if (!rd || !keys.length) return "";
+  const rows = keys.map((k) => rd.e.find((e) => e.k === k)).filter(Boolean);
+  const rest = rd.e.length - rows.length;
+  return `<section class="sec"><div class="sec-h"><h3>On the radar today</h3><button data-seg="radar">Radar</button></div>
+    ${rows.map(radarRow).join("")}${rest > 0 ? `<p class="note">${rest} more quiet entries in Ideas, Radar.</p>` : ""}</section>`;
 }
 
 function alertRows(list) {
@@ -295,6 +305,12 @@ function badge() {
 
 async function go(tab, id) {
   cache = await allMessages();
+  if (tab === "radar") {                                   // one Radar entry in the Ideas tab
+    document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "ideas"));
+    history.replaceState(null, "", "#radar/" + encodeURIComponent(id));
+    radarDetail(cache, id);
+    return badge();
+  }
   if (tab === "idea") {                                    // one company in the Ideas tab
     document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "ideas"));
     history.replaceState(null, "", "#ideas/" + encodeURIComponent(id));
@@ -313,6 +329,8 @@ async function go(tab, id) {
 document.addEventListener("click", (e) => {
   if (e.target.closest("a")) return;                       // links to filings open on their own
   const idea = e.target.closest("[data-idea]"), seg = e.target.closest("[data-seg]"), sort = e.target.closest("[data-sort]");
+  const rad = e.target.closest("[data-radar]");
+  if (rad) return go("radar", rad.dataset.radar);
   if (seg) { setIdeasSeg(seg.dataset.seg); return go("ideas"); }
   if (sort) { setIdeasSort(sort.dataset.sort); return go("ideas"); }
   if (idea) return go("idea", idea.dataset.idea);
@@ -342,6 +360,7 @@ if ("serviceWorker" in navigator) {
   const h = decodeURIComponent(location.hash.slice(1));
   if (["alerts", "ideas", "reports", "settings"].includes(h)) go(h);
   else if (h.startsWith("ideas/")) go("idea", h.slice(6));
+  else if (h.startsWith("radar/")) go("radar", h.slice(6));
   else if (h) go(null, h);
   else go("today");
 })();
