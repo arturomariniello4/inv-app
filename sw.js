@@ -3,6 +3,7 @@
 // v3: company logos in the Ideas list, kept on the phone after the first view so they also show offline
 // v4: the notification always shows, even if saving a part fails (iOS stops pushes to an app that skips one)
 // v5: a long report arrives as ONE push with a key; its content is fetched from an encrypted box and opened here
+// v6: every notification gets its own tag: iOS replaces a same-tag notification silently (no banner, no sound)
 const DB = "inv", STORE = "messages", PARTS = "parts";
 
 function openDb() {
@@ -126,7 +127,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil((async () => {
     if (msg.box) {                      // one push for the whole report: show it first, then open the box
       await self.registration.showNotification(msg.title || "INV", {
-        body: msg.body || "", tag: msg.tag || msg.id, data: { id: msg.id }, icon: "icon-192.png?v=2" });
+        body: msg.body || "", tag: (msg.tag || msg.id) + "@" + Date.now(), data: { id: msg.id }, icon: "icon-192.png?v=2" });
       await receiveBox(msg);
       (await self.clients.matchAll({ type: "window" })).forEach((c) => c.postMessage({ type: "new-message" }));
       return;
@@ -145,7 +146,7 @@ self.addEventListener("push", (event) => {
     }
     await self.registration.showNotification(msg.title || "INV", {
       body: msg.body || "",
-      tag: msg.tag || msg.id,   // the parts of one message replace each other; the day's ideas share the briefing's
+      tag: (msg.tag || msg.id) + "@" + Date.now(),   // a fresh tag, so iOS shows a banner (a same-tag one is replaced silently)
       data: { id: msg.id },
       icon: "icon-192.png?v=2",
     });
