@@ -8,11 +8,12 @@ const view = () => $("view");
 
 function openDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 2);
+    const req = indexedDB.open(DB, 3);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
       if (!db.objectStoreNames.contains("parts")) db.createObjectStore("parts", { keyPath: "key" });
+      if (!db.objectStoreNames.contains("log")) db.createObjectStore("log", { autoIncrement: true });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -207,8 +208,27 @@ function settingsView() {
       <div class="kv"><span>Quiet hours</span><span>${esc(p ? p.quiet_hours : "23:00–07:00")}</span></div>
       <div class="kv"><span>Urgent alerts</span><span>Rarer on busy days</span></div>
       ${edit(p && p.edit_settings, "Change schedule or quiet hours on GitHub")}</div>
+    <div class="group"><h3>Delivery log</h3><div id="dlog"><p class="muted">Loading…</p></div>
+      <p class="muted">Every push this phone received (newest first) and whether a notification was shown.</p></div>
     <div class="group"><h3>About</h3><p>Information only. The app never trades: every alert says what could be done and why, and you decide and place every order. Messages are stored only on this phone.</p></div>`;
   wireSetup();
+  deliveryLog().then((rows) => {
+    const el = $("dlog");
+    if (!el) return;
+    el.innerHTML = rows.length ? rows.map((r) => `<div class="kv"><span>${esc(when(r.at))}</span><span>${esc([r.title || r.id, r.part, r.shown ? "shown: " + r.shown : "", r.note, r.error].filter(Boolean).join(" · "))}</span></div>`).join("")
+      : '<p class="muted">No push received since this log was added.</p>';
+  });
+}
+
+async function deliveryLog() {
+  try {
+    const db = await openDb();
+    return await new Promise((resolve) => {
+      const req = db.transaction("log").objectStore("log").getAll();
+      req.onsuccess = () => resolve((req.result || []).reverse().slice(0, 30));
+      req.onerror = () => resolve([]);
+    });
+  } catch (_) { return []; }
 }
 
 async function openMessage(id) {

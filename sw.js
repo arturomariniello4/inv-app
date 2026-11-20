@@ -3,16 +3,18 @@
 // v3: company logos in the Ideas list, kept on the phone after the first view so they also show offline
 // v4: the notification always shows, even if saving a part fails (iOS stops pushes to an app that skips one)
 // v5: a long report arrives as ONE push with a key; its content is fetched from an encrypted box and opened here
+// v7: a delivery log (Settings): every push received, when, and whether a notification was shown
 // v6: every notification gets its own tag: iOS replaces a same-tag notification silently (no banner, no sound)
 const DB = "inv", STORE = "messages", PARTS = "parts";
 
 function openDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 2);
+    const req = indexedDB.open(DB, 3);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
       if (!db.objectStoreNames.contains(PARTS)) db.createObjectStore(PARTS, { keyPath: "key" });
+      if (!db.objectStoreNames.contains("log")) db.createObjectStore("log", { autoIncrement: true });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -78,9 +80,11 @@ async function getMessage(id) {
 async function receiveBox(msg) {
   try {
     await save(await openBox(msg.box));
+    return true;
   } catch (err) {                       // offline or not there yet: keep a note and try again when the app opens
     const had = await getMessage(msg.id);
     if (!had || had.waiting) await save({ ...msg, waiting: true });
+    return false;
   }
 }
 
@@ -105,6 +109,28 @@ self.addEventListener("message", (event) => {
   })());
 });
 
+// Delivery log, kept on the phone (last 50): proves which pushes reached the phone and what was shown.
+async function logPush(entry) {
+  try {
+    const db = await openDb();
+    const tx = db.transaction("log", "readwrite"), store = tx.objectStore("log");
+    store.add({ at: new Date().toISOString(), ...entry });
+    const keys = await new Promise((r) => { const q = store.getAllKeys(); q.onsuccess = () => r(q.result || []); q.onerror = () => r([]); });
+    keys.slice(0, Math.max(0, keys.length - 50)).forEach((k) => store.delete(k));
+  } catch (_) {}
+}
+
+async function show(msg, note) {
+  const tag = (msg.tag || msg.id) + "@" + Date.now();
+  let shown = "yes", error = "";
+  try {
+    await self.registration.showNotification(msg.title || "INV", { body: msg.body || "", tag, data: { id: msg.id }, icon: "icon-192.png?v=2" });
+    const open = await self.registration.getNotifications({ tag });
+    if (!open.length) shown = "not listed";
+  } catch (err) { shown = "no"; error = String(err).slice(0, 120); }
+  await logPush({ id: msg.id, kind: msg.kind, title: msg.title, part: msg.parts ? `${msg.part + 1}/${msg.parts}` : "", box: !!msg.box, shown, error, note: note || "" });
+}
+
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
@@ -126,9 +152,9 @@ self.addEventListener("push", (event) => {
   try { msg = event.data.json(); } catch (_) { msg = { id: "msg:" + Date.now(), kind: "alert", title: "INV", body: event.data ? event.data.text() : "", text: "" }; }
   event.waitUntil((async () => {
     if (msg.box) {                      // one push for the whole report: show it first, then open the box
-      await self.registration.showNotification(msg.title || "INV", {
-        body: msg.body || "", tag: (msg.tag || msg.id) + "@" + Date.now(), data: { id: msg.id }, icon: "icon-192.png?v=2" });
-      await receiveBox(msg);
+      await show(msg);
+      const ok = await receiveBox(msg);
+      await logPush({ id: msg.id, kind: msg.kind, title: msg.title, box: true, shown: "", note: ok ? "content opened" : "content waiting (fetch failed)" });
       (await self.clients.matchAll({ type: "window" })).forEach((c) => c.postMessage({ type: "new-message" }));
       return;
     }
@@ -144,12 +170,7 @@ self.addEventListener("push", (event) => {
     } catch (err) {
       console.error("INV: could not save a push", err);   // the notification below must still show
     }
-    await self.registration.showNotification(msg.title || "INV", {
-      body: msg.body || "",
-      tag: (msg.tag || msg.id) + "@" + Date.now(),   // a fresh tag, so iOS shows a banner (a same-tag one is replaced silently)
-      data: { id: msg.id },
-      icon: "icon-192.png?v=2",
-    });
+    await show(msg);
   })());
 });
 
