@@ -183,7 +183,11 @@ function today() {
     return;
   }
   const doc = latest.doc;
-  view().innerHTML = masthead(doc.dateline, `${doc.time} Luxembourg`) + setupBanner()
+  if (doc.snapshot && !today.full) {                       // the headline snapshot first (snapshot.js)
+    view().innerHTML = snapshotPage(latest);
+    return;
+  }
+  view().innerHTML = (doc.snapshot ? bar("Full briefing", "today") : "") + masthead(doc.dateline, `${doc.time} Luxembourg`) + setupBanner()
     + briefingBody(doc, { alerts: alertBlock, footer });
 }
 
@@ -311,6 +315,15 @@ async function go(tab, id) {
     radarDetail(cache, id);
     return badge();
   }
+  if (tab === "story") {                                   // one snapshot line opened (layer 2)
+    document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "today"));
+    history.replaceState(null, "", "#story/" + id);
+    const latest = briefings().find((m) => m.doc && m.doc.snapshot);
+    if (latest) storyCard(latest, Number(id)); else today();
+    return badge();
+  }
+  today.full = tab === "full";
+  if (tab === "full") tab = "today";
   if (tab === "idea") {                                    // one company in the Ideas tab
     document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "ideas"));
     history.replaceState(null, "", "#ideas/" + encodeURIComponent(id));
@@ -330,6 +343,9 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("a")) return;                       // links to filings open on their own
   const idea = e.target.closest("[data-idea]"), seg = e.target.closest("[data-seg]"), sort = e.target.closest("[data-sort]");
   const rad = e.target.closest("[data-radar]");
+  const st = e.target.closest("[data-story]"), full = e.target.closest("[data-full]");
+  if (st) return go("story", st.dataset.story);
+  if (full) return go("full");
   if (rad) return go("radar", rad.dataset.radar);
   if (seg) { setIdeasSeg(seg.dataset.seg); return go("ideas"); }
   if (sort) { setIdeasSort(sort.dataset.sort); return go("ideas"); }
@@ -344,7 +360,7 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (e) => {
     if (e.data && e.data.type === "open") go(null, e.data.id);
     else if (/^#ideas/.test(location.hash)) { if (location.hash === "#ideas") go("ideas"); }
-    else if (!/^#(alerts|reports|settings)|^#.+:/.test(location.hash)) go("today");
+    else if (!/^#(alerts|reports|settings|story)|^#.+:/.test(location.hash)) go("today");
   });
 }
 
@@ -361,6 +377,7 @@ if ("serviceWorker" in navigator) {
   if (["alerts", "ideas", "reports", "settings"].includes(h)) go(h);
   else if (h.startsWith("ideas/")) go("idea", h.slice(6));
   else if (h.startsWith("radar/")) go("radar", h.slice(6));
+  else if (h.startsWith("story/")) go("story", h.slice(6));
   else if (h) go(null, h);
   else go("today");
 })();

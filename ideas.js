@@ -130,7 +130,9 @@ function ideasView(cache) {
     body = `<p class="lede">Solid companies ranked by how much has just happened that is worth reading. Heat fades by half every two weeks.</p>`
       + (list.length ? list.map((c) => card(c)).join("") : '<p class="muted pad">Nothing reaches the bar today.</p>');
   }
-  view().innerHTML = bar("Ideas") + `<p class="sub">${esc(doc.date)} · ${worth} worth a deep dive · ${doc.co.length} companies</p>
+  const snap = doc.snap ? `<section class="idsnap"><span class="mchip ${/^0 /.test(doc.snap.chip) || /^Nothing/.test(doc.snap.chip) ? "" : "green"}">${esc(doc.snap.chip)}</span>
+    <h2>${esc(doc.snap.head)}</h2><p class="muted" style="margin:0">${esc(doc.snap.line.replace(/^.*?\. /, ""))}</p></section>` : "";
+  view().innerHTML = bar("Ideas") + snap + `<p class="sub">${esc(doc.date)} · ${worth} worth a deep dive · ${doc.co.length} companies</p>
     <div class="seg3 four">${seg("must", "Must read", doc.must.length)}${seg("but", "Attractive…", doc.but.length)}${seg("radar", "Radar", rd ? rd.e.length : 0)}${seg("all", "All")}</div>
     ${body}${ideasSeg === "radar" ? "" : raisesBlock(doc) + trackBlock(doc)}
     ${doc.cut ? `<p class="muted fine">${doc.cut} screened-out companies were left out to fit the phone; the Saturday report lists them.</p>` : ""}
