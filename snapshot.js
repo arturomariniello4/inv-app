@@ -41,9 +41,9 @@ function ideasBox() {
 
 const DOTS = { High: "●●●", Medium: "●●○", Low: "●○○", Unverified: "○○○" };
 
-function snapLine(l, i) {
+function snapLine(l, i, mid) {
   const meta = [l.pot, l.kicker, l.reports > 1 ? `${l.reports} reports` : (l.outlets || [])[0], l.sure].filter(Boolean);
-  return `<button class="sline" data-story="${i}"><span class="n">${i + 1}</span><span><span class="t">${esc(l.headline)}</span>
+  return `<button class="sline" data-story="${mid ? esc(mid) + "|" : ""}${i}"><span class="n">${i + 1}</span><span><span class="t">${esc(l.headline)}</span>
     <span class="m"><b>${esc(meta[0])}</b>${meta.slice(1).map((x) => " · " + esc(x)).join("")}</span></span><span class="chev">›</span></button>`;
 }
 
@@ -58,7 +58,7 @@ function snapshotPage(latest) {
            : `<h1>${esc(s.lines[0] ? s.lines[0].headline : "A quiet day")}</h1><p class="muted">No market figures came in for this briefing.</p>`}
     </section>
     <section class="sec"><div class="sec-h"><h3>What happened</h3><button data-full="1">All ${s.stories} stories ›</button></div>
-      ${s.lines.map(snapLine).join("") || '<p class="muted">Nothing passed the importance bar today.</p>'}</section>
+      ${s.lines.map((l, i) => snapLine(l, i)).join("") || '<p class="muted">Nothing passed the importance bar today.</p>'}</section>
     <div class="abox${(s.attention || []).length ? " on" : ""}"><h4>Needs your attention</h4>${att}</div>
     <div class="duo">${sinceBox(latest.id)}${ideasBox()}</div>
     <button class="full" data-full="1">Read the full briefing ›</button>
@@ -68,8 +68,11 @@ function snapshotPage(latest) {
 function storyCard(latest, i) {
   const doc = latest.doc, lines = doc.snapshot.lines, l = lines[i];
   if (!l) return go("today");
-  const nav = `<div class="bar"><button class="back" data-go="today">‹ Today</button>
-    <span class="muted">${i > 0 ? `<button class="back" data-story="${i - 1}">‹</button> ` : ""}${i + 1} of ${lines.length}${i < lines.length - 1 ? ` <button class="back" data-story="${i + 1}">›</button>` : ""}</span></div>`;
+  const isLatest = briefings().find((m) => m.doc && m.doc.snapshot) === latest;
+  const ref = (k) => isLatest ? `${k}` : `${esc(latest.id)}|${k}`;
+  const back = isLatest ? `<button class="back" data-go="today">‹ Today</button>` : `<button class="back" data-day="${esc(doc.date)}">‹ ${esc(doc.dateline)}</button>`;
+  const nav = `<div class="bar">${back}
+    <span class="muted">${i > 0 ? `<button class="back" data-story="${ref(i - 1)}">‹</button> ` : ""}${i + 1} of ${lines.length}${i < lines.length - 1 ? ` <button class="back" data-story="${ref(i + 1)}">›</button>` : ""}</span></div>`;
   const block = (h, t) => t ? `<div class="blk"><h3>${h}</h3><p>${esc(t)}</p></div>` : "";
   const cases = l.up || l.down ? `<div class="blk case"><b class="up">Up case</b><span>${esc(l.up)}</span><b class="down">Down case</b><span>${esc(l.down)}</span></div>` : "";
   const how = l.reports > 1 ? `${l.reports} reports from ${(l.outlets || []).join(", ")}.` : `${(l.outlets || [""])[0]}.`;

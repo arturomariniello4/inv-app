@@ -109,7 +109,17 @@ function bar(title, back) {
 // ---- Views --------------------------------------------------------------------------------
 let cache = [];
 const briefings = () => cache.filter((m) => m.kind === "briefing");
-const alerts = () => cache.filter((m) => m.kind === "alert");
+// The same alert received twice (an old server bug re-sent stories) is shown once, at its first arrival.
+const alerts = () => {
+  const seen = new Set();
+  return cache.filter((m) => m.kind === "alert").reverse().filter((m) => {
+    const key = (m.doc && m.doc.headline) || `${m.title}|${m.body}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).reverse();
+};
+const localDay = (iso) => { const d = new Date(iso || 0); return isNaN(d) ? "" : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const weeklies = () => cache.filter((m) => m.kind === "weekly");
 const recent = (m, hours) => Date.now() - new Date(m.received || 0) < hours * 3600e3;
 
@@ -168,7 +178,8 @@ function alertCard(a) {
 
 function today() {
   const latest = briefings().find((m) => m.doc);
-  const fresh = alerts().filter((m) => recent(m, 48));
+  const after = (briefings()[0] || {}).received || "";
+  const fresh = alerts().filter((m) => (m.received || "") > after);   // only since the last briefing; older days are in the calendar
   const alertBlock = fresh.length ? `<section class="sec" style="margin-top:12px"><div class="sec-h"><h3>Alerts</h3>
       <button data-go="alerts">All alerts</button></div>${alertRows(fresh.slice(0, 3))}</section>` : "";
   const weekly = weeklies()[0];
@@ -192,9 +203,13 @@ function today() {
 }
 
 function alertsView() {
-  const list = alerts();
+  // Only what is new since the last evening briefing (which already covered the earlier ones); older days are in the calendar.
+  const all = alerts(), last = (briefings()[0] || {}).received || "";
+  const list = all.filter((m) => (m.received || "") > last);
+  const older = all.length - list.length;
   view().innerHTML = bar("Alerts") + `<div class="wrap">${list.length ? alertRows(list)
-    : '<p class="muted" style="padding:16px 0">No alerts yet. Urgent news reaches you here and on your lock screen; the threshold rises on busy days so it stays rare.</p>'}</div>`;
+    : `<p class="muted" style="padding:16px 0">${all.length ? "No new alerts since the last evening briefing." : "No alerts yet. Urgent news reaches you here and on your lock screen; the threshold rises on busy days so it stays rare."}</p>`}
+    ${older ? `<button class="full" style="margin:14px 0 0;width:100%" data-go="reports">Earlier alerts are in the Calendar ›</button>` : ""}</div>`;
   try { localStorage.setItem("inv-alerts-seen", new Date().toISOString()); } catch (_) {}
   badge();
 }
@@ -315,11 +330,18 @@ async function go(tab, id) {
     radarDetail(cache, id);
     return badge();
   }
+  if (tab === "day") {                                     // one past day from the calendar
+    document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "reports"));
+    history.replaceState(null, "", "#day/" + id);
+    dayView(id);
+    return badge();
+  }
   if (tab === "story") {                                   // one snapshot line opened (layer 2)
     document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "today"));
-    history.replaceState(null, "", "#story/" + id);
-    const latest = briefings().find((m) => m.doc && m.doc.snapshot);
-    if (latest) storyCard(latest, Number(id)); else today();
+    history.replaceState(null, "", "#story/" + encodeURIComponent(id));
+    const [mid, i] = String(id).includes("|") ? String(id).split("|") : [null, id];
+    const msg = mid ? cache.find((m) => m.id === mid) : briefings().find((m) => m.doc && m.doc.snapshot);
+    if (msg && msg.doc && msg.doc.snapshot) storyCard(msg, Number(i)); else today();
     return badge();
   }
   today.full = tab === "full";
@@ -334,7 +356,7 @@ async function go(tab, id) {
   document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === (id ? null : tab)));
   history.replaceState(null, "", id ? "#" + encodeURIComponent(id) : tab === "today" ? "./" : "#" + tab);
   if (name === "open") await openMessage(id);
-  else ({ today, alerts: alertsView, ideas: () => ideasView(cache), reports: reportsView, settings: settingsView }[tab] || today)();
+  else ({ today, alerts: alertsView, ideas: () => ideasView(cache), reports: calendarView, settings: settingsView }[tab] || today)();
   if (!id) window.scrollTo(0, 0);
   badge();
 }
@@ -344,6 +366,9 @@ document.addEventListener("click", (e) => {
   const idea = e.target.closest("[data-idea]"), seg = e.target.closest("[data-seg]"), sort = e.target.closest("[data-sort]");
   const rad = e.target.closest("[data-radar]");
   const st = e.target.closest("[data-story]"), full = e.target.closest("[data-full]");
+  const day = e.target.closest("[data-day]"), mon = e.target.closest("[data-month]");
+  if (day) return go("day", day.dataset.day);
+  if (mon) { calMonth = mon.dataset.month; return go("reports"); }
   if (st) return go("story", st.dataset.story);
   if (full) return go("full");
   if (rad) return go("radar", rad.dataset.radar);
@@ -360,7 +385,7 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (e) => {
     if (e.data && e.data.type === "open") go(null, e.data.id);
     else if (/^#ideas/.test(location.hash)) { if (location.hash === "#ideas") go("ideas"); }
-    else if (!/^#(alerts|reports|settings|story)|^#.+:/.test(location.hash)) go("today");
+    else if (!/^#(alerts|reports|settings|story|day)|^#.+:/.test(location.hash)) go("today");
   });
 }
 
@@ -378,6 +403,7 @@ if ("serviceWorker" in navigator) {
   else if (h.startsWith("ideas/")) go("idea", h.slice(6));
   else if (h.startsWith("radar/")) go("radar", h.slice(6));
   else if (h.startsWith("story/")) go("story", h.slice(6));
+  else if (h.startsWith("day/")) go("day", h.slice(4));
   else if (h) go(null, h);
   else go("today");
 })();

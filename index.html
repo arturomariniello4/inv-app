@@ -232,6 +232,25 @@
     details.fold .ticker { margin:8px -12px -10px; border-top:1px solid var(--line); border-bottom:0; }
     .idsnap { padding:12px 16px 10px; border-bottom:1px solid var(--line); } .idsnap h2 { font:700 23px/1.15 var(--serif); margin:8px 0 4px; }
 
+    /* Calendar (calendar.js): every past day, tap one to see what happened */
+    .cal { margin:8px 16px 0; }
+    .cal-h { display:flex; justify-content:space-between; align-items:center; padding:6px 0 10px; }
+    .cal-h b { font:700 20px var(--serif); } .cal-h button { color:var(--accent); font-weight:600; font-size:15px; padding:4px 8px; }
+    .cal-h button:disabled { color:var(--line); }
+    .grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center; }
+    .grid .wd { font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.05em; padding-bottom:2px; }
+    .grid .d { aspect-ratio:1; border-radius:10px; display:grid; place-items:center; align-content:center; gap:3px; font-size:15px; color:var(--muted); }
+    .grid button.d { color:var(--ink); background:var(--card); border:1px solid var(--line); font-weight:600; }
+    .grid .d.today { border-color:var(--accent); color:var(--accent); }
+    .grid .d.sel { background:var(--accent); color:var(--paper); border-color:var(--accent); }
+    .grid .dots { display:flex; gap:2px; height:5px; } .grid .dots i { width:5px; height:5px; border-radius:50%; background:var(--accent); }
+    .grid .dots i.a { background:var(--alert); } .grid .dots i.w { background:var(--up); } .grid .d.sel .dots i { background:var(--paper); }
+    .legend { display:flex; gap:12px; font-size:12px; color:var(--muted); margin:10px 0 0; }
+    .legend i { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent); margin-right:4px; vertical-align:1px; }
+    .legend i.a { background:var(--alert); } .legend i.w { background:var(--up); }
+    .dayline { padding:10px 0; border-bottom:1px solid var(--line); display:grid; grid-template-columns:1fr auto; gap:8px; width:100%; text-align:left; align-items:center; }
+    .dayline .t { font:700 16px/1.25 var(--serif); } .dayline .m { font-size:12px; color:var(--muted); }
+
     /* Tab bar */
     nav.tabs { position:fixed; left:0; right:0; bottom:0; display:grid; grid-template-columns:repeat(5, 1fr);
                background:var(--paper); border-top:1px solid var(--line); padding:6px 0 calc(6px + env(safe-area-inset-bottom)); z-index:5; }
@@ -248,14 +267,15 @@
     <button data-tab="today" class="on"><svg viewBox="0 0 24 24"><path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 8h3v9a2 2 0 0 1-2 2"/><path d="M7 9h7M7 12h7M7 15h4"/></svg>Today</button>
     <button data-tab="alerts"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>Alerts<span id="badge" class="badge hidden"></span></button>
     <button data-tab="ideas"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/><path d="M14 4l3 3 4-5"/></svg>Ideas</button>
-    <button data-tab="reports"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h7M9 15h7M9 18h4"/></svg>Reports</button>
+    <button data-tab="reports"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M12 14h2M16 14h0M8 17h2M12 17h2"/></svg>Calendar</button>
     <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
   </nav>
 
   <script src="config.js"></script>
   <script src="logos/index.js"></script>
-  <script src="ideas.js?v=snap1"></script>
-  <script src="snapshot.js?v=snap1"></script>
-  <script src="app.js?v=snap1"></script>
+  <script src="ideas.js?v=cal1"></script>
+  <script src="snapshot.js?v=cal1"></script>
+  <script src="calendar.js?v=cal1"></script>
+  <script src="app.js?v=cal1"></script>
 </body>
 </html>
