@@ -362,12 +362,14 @@ async function go(tab, id) {
   badge();
 }
 
-document.addEventListener("click", (e) => {
-  if (e.target.closest("a")) return;                       // links to filings open on their own
-  const idea = e.target.closest("[data-idea]"), seg = e.target.closest("[data-seg]"), sort = e.target.closest("[data-sort]");
-  const rad = e.target.closest("[data-radar]");
-  const st = e.target.closest("[data-story]"), full = e.target.closest("[data-full]");
-  const day = e.target.closest("[data-day]"), mon = e.target.closest("[data-month]");
+// Every tappable thing that moves between screens. route() does the move; swipe.js wraps it in a slide
+// and keeps the stack of screens behind, so Back and a swipe return to the screen you came from.
+const NAV = "[data-idea],[data-seg],[data-sort],[data-radar],[data-story],[data-full],[data-day],[data-month],[data-tab],[data-go],[data-open]";
+function route(target) {
+  const idea = target.closest("[data-idea]"), seg = target.closest("[data-seg]"), sort = target.closest("[data-sort]");
+  const rad = target.closest("[data-radar]");
+  const st = target.closest("[data-story]"), full = target.closest("[data-full]");
+  const day = target.closest("[data-day]"), mon = target.closest("[data-month]");
   if (day) return go("day", day.dataset.day);
   if (mon) { calMonth = mon.dataset.month; return go("reports"); }
   if (st) return go("story", st.dataset.story);
@@ -376,10 +378,27 @@ document.addEventListener("click", (e) => {
   if (seg) { setIdeasSeg(seg.dataset.seg); return go("ideas"); }
   if (sort) { setIdeasSort(sort.dataset.sort); return go("ideas"); }
   if (idea) return go("idea", idea.dataset.idea);
-  const t = e.target.closest("[data-tab],[data-go],[data-open]");
-  if (!t) return;
-  if (t.dataset.open) go(null, t.dataset.open);
-  else go(t.dataset.tab || t.dataset.go);
+  const t = target.closest("[data-tab],[data-go],[data-open]");
+  if (!t) return Promise.resolve();
+  return t.dataset.open ? go(null, t.dataset.open) : go(t.dataset.tab || t.dataset.go);
+}
+
+// The screen a hash names (the address bar keeps it, so a screen can be reopened as it was).
+function goHash(hash, full) {
+  const h = decodeURIComponent(String(hash || "").replace(/^#/, ""));
+  if (["alerts", "ideas", "reports", "settings"].includes(h)) return go(h);
+  if (h.startsWith("ideas/")) return go("idea", h.slice(6));
+  if (h.startsWith("radar/")) return go("radar", h.slice(6));
+  if (h.startsWith("story/")) return go("story", h.slice(6));
+  if (h.startsWith("day/")) return go("day", h.slice(4));
+  if (h) return go(null, h);
+  return go(full ? "full" : "today");
+}
+
+document.addEventListener("click", (e) => {
+  if (e.target.closest("a")) return;                       // links to filings open on their own
+  const el = e.target.closest(NAV);
+  if (el) navigate(el);                                    // swipe.js
 });
 
 if ("serviceWorker" in navigator) {
@@ -399,13 +418,6 @@ if ("serviceWorker" in navigator) {
       navigator.serviceWorker.ready.then((r) => r.active && r.active.postMessage({ type: "open-waiting" })).catch(() => {});
     } catch (_) {}
   }
-  const h = decodeURIComponent(location.hash.slice(1));
-  if (["alerts", "ideas", "reports", "settings"].includes(h)) go(h);
-  else if (h.startsWith("ideas/")) go("idea", h.slice(6));
-  else if (h.startsWith("radar/")) go("radar", h.slice(6));
-  else if (h.startsWith("story/")) go("story", h.slice(6));
-  else if (h.startsWith("day/")) go("day", h.slice(4));
-  else if (h) go(null, h);
-  else go("today");
+  goHash(location.hash);
   refreshLive();                                           // the hourly market prices (snapshot.js)
 })();
