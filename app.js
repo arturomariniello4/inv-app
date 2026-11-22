@@ -1,7 +1,7 @@
 // INV web app: a personal front page built from what arrives by push. Everything stays on this
-// phone (IndexedDB). Five tabs: Today (the latest briefing as a front page), Alerts, Ideas
-// (companies ranked from their filings, ideas.js), Reports (past briefings and Saturday reports)
-// and Settings. It never trades.
+// phone (IndexedDB). Six tabs: Today (the latest briefing as a front page), Alerts, Ideas
+// (companies ranked from their filings, ideas.js), Portfolio (real positions and the risk check,
+// portfolio.js), Reports (past briefings and Saturday reports) and Settings. It never trades.
 const DB = "inv", STORE = "messages";
 const $ = (id) => document.getElementById(id);
 const view = () => $("view");
@@ -361,7 +361,7 @@ async function go(tab, id) {
   document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === (id ? null : tab)));
   history.replaceState(null, "", id ? "#" + encodeURIComponent(id) : tab === "today" ? "./" : "#" + tab);
   if (name === "open") await openMessage(id);
-  else ({ today, alerts: alertsView, ideas: () => ideasView(cache), reports: calendarView, settings: settingsView }[tab] || today)();
+  else ({ today, alerts: alertsView, ideas: () => ideasView(cache), portfolio: portfolioView, reports: calendarView, settings: settingsView }[tab] || today)();
   if (!id) window.scrollTo(0, 0);
   badge();
 }
@@ -390,7 +390,7 @@ function route(target) {
 // The screen a hash names (the address bar keeps it, so a screen can be reopened as it was).
 function goHash(hash, full) {
   const h = decodeURIComponent(String(hash || "").replace(/^#/, ""));
-  if (["alerts", "ideas", "reports", "settings"].includes(h)) return go(h);
+  if (["alerts", "ideas", "portfolio", "reports", "settings"].includes(h)) return go(h);
   if (h.startsWith("ideas/")) return go("idea", h.slice(6));
   if (h.startsWith("radar/")) return go("radar", h.slice(6));
   if (h.startsWith("story/")) return go("story", h.slice(6));
@@ -409,6 +409,7 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (e) => {
     if (e.data && e.data.type === "open") go(null, e.data.id);
     else if (/^#ideas/.test(location.hash)) { if (location.hash === "#ideas") go("ideas"); }
+    else if (location.hash === "#portfolio") go("portfolio");                // a new briefing brings new positions
     else if (!/^#(alerts|reports|settings|story|day)|^#.+:/.test(location.hash)) go("today");
   });
 }

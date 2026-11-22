@@ -255,7 +255,7 @@
     .dayline .t { font:700 16px/1.25 var(--serif); } .dayline .m { font-size:12px; color:var(--muted); }
 
     /* Tab bar */
-    nav.tabs { position:fixed; left:0; right:0; bottom:0; display:grid; grid-template-columns:repeat(5, 1fr);
+    nav.tabs { position:fixed; left:0; right:0; bottom:0; display:grid; grid-template-columns:repeat(6, 1fr);
                background:var(--paper); border-top:1px solid var(--line); padding:6px 0 calc(6px + env(safe-area-inset-bottom)); z-index:5; }
     nav.tabs button { display:grid; justify-items:center; gap:2px; font-size:11px; color:var(--muted); font-weight:600; position:relative; }
     nav.tabs button.on { color:var(--accent); }
@@ -279,6 +279,23 @@
     .wrap > .fb { margin:12px 0 0; }
     #fb-key { width:calc(100% - 28px); margin:0 14px 8px; padding:9px 10px; font:13px var(--mono); border-radius:8px; border:1px solid var(--line); background:var(--paper); color:var(--ink); }
     .btn.ghost { background:none; color:var(--accent); border:1px solid var(--accent); margin-left:0; }
+    /* Portfolio (portfolio.js): real positions, read only, and the risk check on them */
+    .phero { display:grid; justify-items:center; gap:2px; width:calc(100% - 32px); margin:12px 16px 0; padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--card); text-align:center; }
+    .phero b { font:700 32px/1.1 var(--serif); font-variant-numeric:tabular-nums; }
+    .pbox.over { border-color:var(--down); }
+    .pbig { display:grid; gap:2px; padding:10px 0 4px; } .pbig b { font:700 30px var(--mono); } .pbig span { font-size:14px; color:var(--ink2); }
+    .pg { position:relative; height:10px; border-radius:5px; background:var(--line); margin:10px 0 2px; }
+    .pg i { position:absolute; left:0; top:0; bottom:0; border-radius:5px; background:var(--accent); } .pg i.near { background:var(--mid); } .pg i.over { background:var(--down); }
+    .pg b { position:absolute; top:-4px; width:2px; height:18px; margin-left:-1px; background:var(--ink); }
+    .pg-l { position:relative; height:16px; font:11px var(--mono); color:var(--muted); display:flex; justify-content:space-between; margin-bottom:4px; }
+    .pg-l span:nth-child(2) { position:absolute; transform:translateX(-50%); white-space:nowrap; color:var(--ink); }
+    .pmix { display:flex; height:12px; border-radius:6px; overflow:hidden; background:var(--line); }
+    .pmix i, .pkey i { display:inline-block; height:100%; } .pkey { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:8px; font-size:12px; color:var(--ink2); }
+    .pkey i { width:8px; height:8px; border-radius:2px; margin-right:4px; vertical-align:0; }
+    .c0 { background:var(--accent); } .c1 { background:var(--mid); } .c2 { background:var(--up); } .c3 { background:var(--alert); } .c4 { background:var(--muted); }
+    .prow { display:grid; grid-template-columns:1fr auto; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); align-items:center; } .prow:last-child { border-bottom:0; }
+    .prow b { font-size:15px; } .pm { font-size:12px; color:var(--muted); margin-top:3px; }
+    .pv2 { display:grid; text-align:right; } .pv2 b { font:600 14px var(--mono); } .pv2 span { font:11px var(--mono); color:var(--muted); }
     .badge { position:absolute; top:-2px; left:calc(50% + 6px); background:var(--alert); color:#fff; font-size:10px; border-radius:99px; padding:0 5px; min-width:16px; }
   </style>
 </head>
@@ -289,17 +306,19 @@
     <button data-tab="today" class="on"><svg viewBox="0 0 24 24"><path d="M4 5h13v14H6a2 2 0 0 1-2-2z"/><path d="M17 8h3v9a2 2 0 0 1-2 2"/><path d="M7 9h7M7 12h7M7 15h4"/></svg>Today</button>
     <button data-tab="alerts"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>Alerts<span id="badge" class="badge hidden"></span></button>
     <button data-tab="ideas"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/><path d="M14 4l3 3 4-5"/></svg>Ideas</button>
+    <button data-tab="portfolio"><svg viewBox="0 0 24 24"><path d="M12 3v9h9"/><path d="M20.5 15.5A9 9 0 1 1 8.5 3.7"/></svg>Portfolio</button>
     <button data-tab="reports"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M12 14h2M16 14h0M8 17h2M12 17h2"/></svg>Calendar</button>
     <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
   </nav>
 
   <script src="config.js"></script>
   <script src="logos/index.js"></script>
-  <script src="ideas.js?v=fb1"></script>
-  <script src="snapshot.js?v=fb1"></script>
-  <script src="calendar.js?v=fb1"></script>
-  <script src="feedback.js?v=fb1"></script>
-  <script src="app.js?v=fb1"></script>
-  <script src="swipe.js?v=fb1"></script>
+  <script src="ideas.js?v=pf1"></script>
+  <script src="snapshot.js?v=pf1"></script>
+  <script src="calendar.js?v=pf1"></script>
+  <script src="portfolio.js?v=pf1"></script>
+  <script src="feedback.js?v=pf1"></script>
+  <script src="app.js?v=pf1"></script>
+  <script src="swipe.js?v=pf1"></script>
 </body>
 </html>
