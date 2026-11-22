@@ -267,6 +267,18 @@
     .under { position:fixed; inset:0; z-index:0; overflow:hidden; background:var(--paper); padding-top:env(safe-area-inset-top); pointer-events:none; }
     .under-page { will-change:transform; }
     .under-shade { position:absolute; inset:0; background:#000; opacity:0; }
+    /* Useful / Noise (feedback.js) */
+    .fb { border-top:1px solid var(--line); padding-top:10px; display:grid; gap:8px; }
+    .fb h3 { margin:0; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+    .fb-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .fb-b { padding:11px 8px; border:1px solid var(--line); border-radius:10px; background:var(--card); font-weight:600; font-size:15px; text-align:center; }
+    .fb-b.on.up { border-color:var(--up); color:var(--up); background:color-mix(in srgb, var(--up) 10%, var(--card)); }
+    .fb-b.on.down { border-color:var(--down); color:var(--down); background:color-mix(in srgb, var(--down) 10%, var(--card)); }
+    .fb p { margin:0; font-size:12px; }
+    .fb-tag { font-size:11px; font-weight:700; } .fb-tag.up { color:var(--up); } .fb-tag.down { color:var(--down); }
+    .wrap > .fb { margin:12px 0 0; }
+    #fb-key { width:calc(100% - 28px); margin:0 14px 8px; padding:9px 10px; font:13px var(--mono); border-radius:8px; border:1px solid var(--line); background:var(--paper); color:var(--ink); }
+    .btn.ghost { background:none; color:var(--accent); border:1px solid var(--accent); margin-left:0; }
     .badge { position:absolute; top:-2px; left:calc(50% + 6px); background:var(--alert); color:#fff; font-size:10px; border-radius:99px; padding:0 5px; min-width:16px; }
   </style>
 </head>
@@ -283,10 +295,11 @@
 
   <script src="config.js"></script>
   <script src="logos/index.js"></script>
-  <script src="ideas.js?v=swipe1"></script>
-  <script src="snapshot.js?v=swipe1"></script>
-  <script src="calendar.js?v=swipe1"></script>
-  <script src="app.js?v=swipe1"></script>
-  <script src="swipe.js?v=swipe1"></script>
+  <script src="ideas.js?v=fb1"></script>
+  <script src="snapshot.js?v=fb1"></script>
+  <script src="calendar.js?v=fb1"></script>
+  <script src="feedback.js?v=fb1"></script>
+  <script src="app.js?v=fb1"></script>
+  <script src="swipe.js?v=fb1"></script>
 </body>
 </html>

@@ -152,13 +152,14 @@ function alertRows(list) {
   return list.map((m) => {
     const a = m.doc && m.doc.type === "alert" ? m.doc : null;
     const kicker = a ? a.tags.join(" · ") : "Alert";
+    const t = fbTap(m.id), mark = t ? ` <span class="fb-tag ${t === "useful" ? "up" : "down"}">${t === "useful" ? "Useful" : "Noise"}</span>` : "";
     return `<button class="row" data-open="${esc(m.id)}"><span><div class="kicker alert">${esc(kicker)} · ${esc(when(m.received))}</div>
-    <div class="t">${esc(a ? a.headline : m.title)}</div><div class="muted">${esc(a ? a.sure.label + " · " + a.sure.short : m.body)}</div></span><span class="chev">›</span></button>`;
+    <div class="t">${esc(a ? a.headline : m.title)}</div><div class="muted">${esc(a ? a.sure.label + " · " + a.sure.short : m.body)}${mark}</div></span><span class="chev">›</span></button>`;
   }).join("");
 }
 
 // One alert, laid out like a news card: tags, headline, summary, why, what you could do, both cases, how sure.
-function alertCard(a) {
+function alertCard(a, id) {
   const block = (h, text) => text ? `<div class="blk"><h3>${h}</h3><p>${esc(text)}</p></div>` : "";
   const cases = a.up || a.down ? `<div class="blk case"><b class="up">Bull</b><span>${esc(a.up)}</span><b class="down">Bear</b><span>${esc(a.down)}</span></div>` : "";
   const also = (a.also || []).length ? `<div class="blk"><h3>Also reported today${a.also_from ? " (" + esc(a.also_from) + ")" : ""}</h3>
@@ -173,6 +174,7 @@ function alertCard(a) {
     ${also}
     <div class="src"><span>${esc(src.name || "")}${src.published ? " · " + esc(when(src.published)) : ""}</span>
       ${src.link ? `<a class="btn" href="${esc(safeUrl(src.link))}" target="_blank" rel="noopener">Read on ${esc(src.name || "source")}</a>` : ""}</div>
+    ${id ? feedbackBlock(id, a.headline, "alert") : ""}
     <p class="last">${esc(a.last_line || "Information only. You decide and place every order.")}</p></article>`;
 }
 
@@ -238,6 +240,7 @@ function settingsView() {
       <div class="kv"><span>Quiet hours</span><span>${esc(p ? p.quiet_hours : "23:00–07:00")}</span></div>
       <div class="kv"><span>Urgent alerts</span><span>Rarer on busy days</span></div>
       ${edit(p && p.edit_settings, "Change schedule or quiet hours on GitHub")}</div>
+    <div class="group"><h3>Useful / Noise feedback</h3><div id="fb-settings">${feedbackSettings()}</div></div>
     <div class="group"><h3>Delivery log</h3><div id="dlog"><p class="muted">Loading…</p></div>
       <p class="muted">Every push this phone received (newest first) and whether a notification was shown.</p></div>
     <div class="group"><h3>About</h3><p>Information only. The app never trades: every alert says what could be done and why, and you decide and place every order. Messages are stored only on this phone.</p></div>`;
@@ -267,12 +270,13 @@ async function openMessage(id) {
   if (m.kind === "ideas") return go("ideas");
   const back = m.kind === "alert" ? "alerts" : "reports";
   if (m.doc && m.doc.type === "alert") {
-    view().innerHTML = bar("Alert", back) + alertCard(m.doc);
+    view().innerHTML = bar("Alert", back) + alertCard(m.doc, m.id);
   } else if (m.doc) {
     view().innerHTML = bar("Evening briefing", back) + masthead(m.doc.dateline, `${m.doc.time} Luxembourg`) + briefingBody(m.doc);
   } else {
     view().innerHTML = bar(m.kind === "weekly" ? "Saturday report" : m.kind === "alert" ? "Alert" : "Evening briefing", back)
-      + `<article class="wrap doc">${render(m.text || m.body)}${m.url ? `<p><a href="${esc(safeUrl(m.url))}" target="_blank" rel="noopener">Read source</a></p>` : ""}</article>`;
+      + `<article class="wrap doc">${render(m.text || m.body)}${m.url ? `<p><a href="${esc(safeUrl(m.url))}" target="_blank" rel="noopener">Read source</a></p>` : ""}</article>`
+      + (m.kind === "alert" ? `<div class="wrap">${feedbackBlock(m.id, m.title, "alert")}</div>` : "");
   }
   window.scrollTo(0, 0);
 }

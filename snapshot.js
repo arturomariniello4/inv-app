@@ -130,6 +130,7 @@ function storyCard(latest, i) {
     <details class="fold"><summary>${(l.all || []).length > 1 ? `The ${(l.all || []).length} latest reports` : "Source"}</summary><ul>${reports}</ul></details>
     ${isLatest && liveFor(latest) ? `<details class="fold"><summary>Market numbers</summary>${liveTicker(liveFor(latest))}</details>`
       : (doc.markets || []).length ? `<details class="fold"><summary>Market numbers</summary>${ticker(doc.markets)}</details>` : ""}
+    ${feedbackBlock(`story:${latest.id}|${i}`, l.full || l.headline, "story")}
     <p class="last">Information only. You decide and place every order.</p></article>`;
   window.scrollTo(0, 0);
 }
