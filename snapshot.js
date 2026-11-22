@@ -2,7 +2,7 @@
 // Layer 1 is the Today screen: the day's mood from the markets, 3-5 numbered lines (one per story),
 // what needs attention, what changed since the last look and the Ideas headline.
 // Layer 2 is a story card (tap a line). Layer 3 is every report and the full briefing.
-// Built only from the briefing the phone received; nothing here trades.
+// Built from the briefing the phone received, plus the hourly market prices; nothing here trades.
 
 function sinceLastLook() {
   // The time of the previous visit stays fixed for this session, so going back to Today shows the same list.
@@ -47,14 +47,58 @@ function snapLine(l, i, mid) {
     <span class="m"><b>${esc(meta[0])}</b>${meta.slice(1).map((x) => " · " + esc(x)).join("")}</span></span><span class="chev">›</span></button>`;
 }
 
+// ---- Hourly market prices (Artu, 2026-11-22) ------------------------------------------------
+// Each hourly run publishes live/markets.json next to the app (public prices only, nothing personal).
+// Today shows it in place of the briefing's closing figures once it is newer than the briefing.
+let live = null;
+try { live = JSON.parse(localStorage.getItem("inv-live") || "null"); } catch (_) { live = null; }
+
+function liveFor(latest) {
+  return live && live.updated && live.mood && live.updated > ((latest && latest.received) || "") ? live : null;
+}
+function hm(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+function liveNote(lv) {
+  const d = new Date(lv.updated), mins = (Date.now() - d) / 60e3;
+  const day = new Date().toDateString() === d.toDateString() ? "" : d.toLocaleDateString("en-GB", { weekday: "short" }) + " ";
+  const late = mins > 150 ? " · the hourly update is late" : "";
+  const how = lv.open ? "stocks about 15 min delayed" : (lv.mood && /closed|open/.test(lv.mood.label) ? "last close" : "closing prices");
+  return `<p class="upd"><span class="dot${lv.open ? " on" : ""}"></span>Updated ${esc(day + hm(lv.updated))} · ${esc(how)}${esc(late)}</p>`;
+}
+function liveMoodBlock(md, note) {
+  const tiles = `<div class="tiles">${md.tiles.map((t) => `<div class="tile${t.big ? " big" : ""}"><span>${esc(t.name)}</span>
+      <b class="${/^[-−]/.test(t.change) ? "down" : /^\+/.test(t.change) ? "up" : ""}">${esc(t.change)}</b>${t.value ? `<small>${esc(t.value)}</small>` : ""}</div>`).join("")}</div>`;
+  return `<span class="mchip ${esc(md.tone)}">${esc(md.label)}</span><h1>${esc(md.line)}</h1>${tiles}${note || ""}`;
+}
+async function refreshLive() {
+  try {
+    const res = await fetch("live/markets.json?t=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) return;
+    const doc = await res.json();
+    if (!doc.updated || (live && live.updated >= doc.updated)) return;
+    live = doc;
+    try { localStorage.setItem("inv-live", JSON.stringify(doc)); } catch (_) {}
+    const box = document.querySelector("section.mood[data-live]"), tick = document.querySelector("[data-live-ticker]");
+    const latest = briefings().find((m) => m.doc);
+    const lv = liveFor(latest);
+    if (box && lv) box.innerHTML = liveMoodBlock(lv.mood, liveNote(lv));
+    if (tick && lv) tick.outerHTML = liveTicker(lv);
+  } catch (_) {}
+}
+function liveTicker(lv) {
+  return `<div data-live-ticker>${ticker(lv.figures)}${liveNote(lv)}</div>`;
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshLive(); });
+setInterval(refreshLive, 10 * 60e3);
+
 function snapshotPage(latest) {
-  const doc = latest.doc, s = doc.snapshot, md = s.mood;
-  const tiles = md ? `<div class="tiles">${md.tiles.map((t) => `<div class="tile${t.big ? " big" : ""}"><span>${esc(t.name)}</span>
-      <b class="${/^[-−]/.test(t.change) ? "down" : /^\+/.test(t.change) ? "up" : ""}">${esc(t.change)}</b></div>`).join("")}</div>` : "";
+  const doc = latest.doc, s = doc.snapshot, lv = liveFor(latest), md = lv ? lv.mood : s.mood;
   const att = (s.attention || []).length ? s.attention.map((a) => `<p>${esc(a)}</p>`).join("") : "<p>Nothing needs you tonight.</p>";
   return `<header class="smast"><b>INV</b><span>${esc(doc.dateline)} · ${esc(doc.time)}</span></header>${setupBanner()}
-    <section class="mood">
-      ${md ? `<span class="mchip ${esc(md.tone)}">${esc(md.label)}</span><h1>${esc(md.line)}</h1>${tiles}`
+    <section class="mood" data-live="1">
+      ${md ? liveMoodBlock(md, lv ? liveNote(lv) : `<p class="upd">At the ${esc(doc.time)} briefing</p>`)
            : `<h1>${esc(s.lines[0] ? s.lines[0].headline : "A quiet day")}</h1><p class="muted">No market figures came in for this briefing.</p>`}
     </section>
     <section class="sec"><div class="sec-h"><h3>What happened</h3><button data-full="1">All ${s.stories} stories ›</button></div>
@@ -84,7 +128,8 @@ function storyCard(latest, i) {
     ${block("Why it matters to you", l.why)}${cases}
     <div class="blk"><h3>How sure</h3><p class="conf"><span class="dots">${DOTS[l.sure] || ""}</span><span><b>${esc(l.sure || "")}.</b> ${esc(how)}</span></p></div>
     <details class="fold"><summary>${(l.all || []).length > 1 ? `The ${(l.all || []).length} latest reports` : "Source"}</summary><ul>${reports}</ul></details>
-    ${(doc.markets || []).length ? `<details class="fold"><summary>Market numbers</summary>${ticker(doc.markets)}</details>` : ""}
+    ${isLatest && liveFor(latest) ? `<details class="fold"><summary>Market numbers</summary>${liveTicker(liveFor(latest))}</details>`
+      : (doc.markets || []).length ? `<details class="fold"><summary>Market numbers</summary>${ticker(doc.markets)}</details>` : ""}
     <p class="last">Information only. You decide and place every order.</p></article>`;
   window.scrollTo(0, 0);
 }

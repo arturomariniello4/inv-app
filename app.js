@@ -128,7 +128,7 @@ function briefingBody(doc, opts = {}) {
     ${sec.stories.map((s) => story(s, false)).join("")}</section>`).join("");
   const quiet = (doc.quiet || []).length ? `<section class="sec"><div class="sec-h"><h3>Also checked</h3></div><ul class="quiet">${doc.quiet.map((q) =>
     `<li><b>${esc(q.title)}</b> ${esc(q.note)}</li>`).join("")}</ul></section>` : "";
-  return `${ticker(doc.markets)}
+  return `${opts.ticker || ticker(doc.markets)}
     ${opts.alerts || ""}
     ${doc.lead ? story(doc.lead, true) : '<p class="note">A quiet day: nothing passed the importance threshold.</p>'}
     ${sections}${radarToday(doc)}${quiet}
@@ -198,8 +198,9 @@ function today() {
     view().innerHTML = snapshotPage(latest);
     return;
   }
+  const lv = liveFor(latest);
   view().innerHTML = (doc.snapshot ? bar("Full briefing", "today") : "") + masthead(doc.dateline, `${doc.time} Luxembourg`) + setupBanner()
-    + briefingBody(doc, { alerts: alertBlock, footer });
+    + briefingBody(doc, { alerts: alertBlock, footer, ticker: lv ? liveTicker(lv) : null });
 }
 
 function alertsView() {
@@ -406,4 +407,5 @@ if ("serviceWorker" in navigator) {
   else if (h.startsWith("day/")) go("day", h.slice(4));
   else if (h) go(null, h);
   else go("today");
+  refreshLive();                                           // the hourly market prices (snapshot.js)
 })();
