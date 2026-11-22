@@ -79,12 +79,24 @@ function fastList(cos) {
     </tbody></table></div><p class="muted fine">Return: expected yearly return in the base case; green when it clears your bar (8% core, 15% satellite). Tap a column to sort.</p>`;
 }
 
+// The company's own website, shown only when an official record or the site itself proves it is theirs.
+function siteHost(u) { return String(u || "").replace(/^https:\/\/(www\.)?/, "").replace(/\/$/, ""); }
+function siteLink(u, cls) {
+  return u ? `<a class="${cls || "site"}" href="${esc(safeUrl(u))}" target="_blank" rel="noopener">${esc(siteHost(u))} ↗</a>` : "";
+}
+
+// A plain web search for a company with no proven website: clearly a search, never presented as their site.
+function coreName(n) {
+  return String(n || "").replace(/\s*\(.*?\)/g, "").replace(/(?:[\s,]+(?:inc|corp|corporation|co|company|ltd|limited|llc|plc|pbc|holdings?|group)\.?)+$/i, "");
+}
+function webSearch(name, where) { return "https://www.google.com/search?q=" + encodeURIComponent(coreName(name) + (where ? " " + where.toLowerCase() : "")); }
+
 function raisesBlock(doc) {
   if (!(doc.raises || []).length) return "";
   return `<section class="isec"><h4>Private companies raising money <span>SEC Form D, last 30 days</span></h4><div class="box"><ul class="ev">
-    ${doc.raises.map((r) => `<li><span><b>${esc(r.name)}</b><br><span class="muted">${esc(r.ind)}${r.where ? " · " + esc(r.where) : ""}${r.people.length ? " · " + esc(r.people.join(", ")) : ""}</span></span>
+    ${doc.raises.map((r) => `<li><span><b>${esc(r.name)}</b>${r.ab ? `<span class="about">${esc(r.ab)}</span>` : ""}<span class="muted rline">${esc(r.ind)}${r.where ? " · " + esc(r.where) : ""}${r.people.length ? " · " + esc(r.people.join(", ")) : ""}</span>${r.w ? siteLink(r.w) : `<a class="site look" href="${esc(webSearch(r.name, r.where))}" target="_blank" rel="noopener">Search the web ↗</a>`}</span>
       <span class="r"><b>${money(r.sold || r.offered)} $</b>${r.sold ? "" : " offered"}<br><a href="${esc(safeUrl(r.url))}" target="_blank" rel="noopener">Filing</a></span></li>`).join("")}
-    </ul></div><p class="muted fine">Official notices only, no rumours. Private shares are not something you can buy here; they show where money is going.</p></section>`;
+    </ul></div><p class="muted fine">Official notices only, no rumours. A website shows only when a filing or the site itself proves it is theirs; “Search the web” is an unchecked search. Private shares are not something you can buy here; they show where money is going.</p></section>`;
 }
 
 function trackBlock(doc) {
@@ -225,7 +237,7 @@ function radarDoc(cache) {
 
 function radarRow(e) {
   return `<div class="rrow" role="button" tabindex="0" data-radar="${esc(e.k)}"><div class="h"><b>${esc(e.n)}${e.new ? ' <span class="rnew">NEW</span>' : ""}</b><span class="m">${esc(e.f)}</span></div>
-    <p>${(e.th || []).slice(0, 2).map((t) => `<span class="rtag th${e.my ? " my" : ""}">${esc(t)}</span>`).join("")}<span class="rtag ${CONF[e.c] || "lo"}">${esc(e.c)}</span>${esc(e.x)}</p></div>`;
+    <p>${(e.th || []).slice(0, 2).map((t) => `<span class="rtag th${e.my ? " my" : ""}">${esc(t)}</span>`).join("")}<span class="rtag ${CONF[e.c] || "lo"}">${esc(e.c)}</span>${esc(e.x)}</p>${e.ab ? `<p class="rab">${esc(e.ab)}</p>` : ""}${siteLink(e.w)}</div>`;
 }
 
 function radarList(cache) {
@@ -245,8 +257,8 @@ function radarDetail(cache, key) {
   const d = e.d, n = { Low: 1, Medium: 2, High: 3 }[e.c] || 1;
   const head = `${bar("Radar", "ideas")}<div class="rhead"><h2>${esc(e.n)}</h2><div class="muted">${esc((RGROUP.find((g) => g[0] === e.g) || [])[1] || "")}${d && d.ind ? " · " + esc(d.ind) : ""}${d && d.where ? " · " + esc(d.where) : ""}</div>
     <p>${(e.th || []).map((t) => `<span class="rtag th${e.my ? " my" : ""}">${esc(t)}</span>`).join("")}<span class="rtag ${CONF[e.c]}">${esc(e.c)} confidence</span></p></div>`;
-  if (!d) { view().innerHTML = head + `<p class="pad">${esc(e.x)}</p><p class="muted pad">The full detail did not fit this push; it is in the Saturday report.</p>`; return window.scrollTo(0, 0); }
-  view().innerHTML = head + `
+  if (!d) { view().innerHTML = head + companyBox(e, {}) + `<p class="pad">${esc(e.x)}</p><p class="muted pad">The full detail did not fit this push; it is in the Saturday report.</p>`; return window.scrollTo(0, 0); }
+  view().innerHTML = head + companyBox(e, d) + `
     <section class="isec"><h4>What happened <span>official filings</span></h4><div class="box">
       ${d.facts.map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("")}
       <div class="kv"><span>Sources</span><span>${d.src.map(([l, u]) => `<a href="${esc(safeUrl(u))}" target="_blank" rel="noopener">${esc(l)}</a>`).join("<br>")}</span></div></div></section>
@@ -257,6 +269,24 @@ function radarDetail(cache, key) {
     <section class="isec"><h4>Watch for next</h4><div class="box"><ul class="plain">${d.next.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div></section>
     <p class="last">Information only. Not a buy: you decide and place every order.</p>`;
   window.scrollTo(0, 0);
+}
+
+// Who the company is: what it does (in its own words where possible), its website and all its filings.
+// Only for companies raising money (first listings and private rounds), which carry their SEC number in the key.
+function companyBox(e, d) {
+  const cik = /^cik:(\d+)$/.exec(e.k || "");
+  if (!cik || !["ipo", "private"].includes(e.g)) return "";
+  const ind = e.i || d.ind;
+  const sec = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${cik[1]}&owner=include&count=40`;
+  const search = webSearch(e.n, d.where);
+  const ab = e.ab ? `<p class="about2">${esc(e.ab)}</p>${d.abs ? `<p class="muted fine0">${d.abs === "Wikidata" ? "From Wikidata" : "In their own words, from " + esc(d.abs)}.</p>` : ""}`
+    : `<p class="muted">No filing says more than the SEC category${ind ? ` (${esc(ind)})` : ""}. Their website is the quickest way to see what they do.</p>`;
+  const web = e.w ? `<a class="btn wide" href="${esc(safeUrl(e.w))}" target="_blank" rel="noopener">Open ${esc(siteHost(e.w))} ↗</a>
+      ${d.wy ? `<p class="muted fine0">${esc(d.wy)}.</p>` : ""}`
+    : `<p class="muted fine0">No website proven yet: no filing names one and no site could be matched to the SEC records. <a href="${esc(search)}" target="_blank" rel="noopener">Search the web</a> (not checked).</p>`;
+  return `<section class="isec"><h4>The company <span>what they do</span></h4><div class="box">${ab}
+      ${ind ? `<div class="kv"><span>Industry (SEC)</span><span>${esc(ind)}</span></div>` : ""}${d.where ? `<div class="kv"><span>Based in</span><span>${esc(d.where)}</span></div>` : ""}
+      ${web}<p class="fine0"><a href="${esc(sec)}" target="_blank" rel="noopener">All its SEC filings ↗</a></p></div></section>`;
 }
 
 function setIdeasSeg(k) { ideasSeg = k; try { localStorage.setItem("inv-ideas-seg", k); } catch (_) {} }
