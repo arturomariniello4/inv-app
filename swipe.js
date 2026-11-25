@@ -73,7 +73,8 @@ async function back(under, alreadyOut) {
   const b = mainBack();
   if (entry) {
     calMonth = entry.month;
-    await goHash(entry.hash, entry.full);
+    if (window.motion) motion.quiet(true);            // the screen you came back to appears as you left it (motion.js)
+    try { await goHash(entry.hash, entry.full); } finally { if (window.motion) motion.quiet(false); }
     settle(null);                                     // a screen moved sideways cannot be scrolled, so put it back first
     window.scrollTo(0, entry.y);
   } else if (b) {
@@ -89,6 +90,7 @@ async function back(under, alreadyOut) {
 
 async function navigate(el) {
   if (busy) return;
+  if (window.motion) motion.finish();                 // no half-finished animation in the copy kept behind
   const k = kind(el);
   if (k === "tab") { stack = []; return route(el); }
   if (k === "same") return route(el);
@@ -148,6 +150,7 @@ document.addEventListener("touchmove", (e) => {
     drag.on = true;
     drag.x0 = t.clientX;                              // no jump: the screen follows from here
     drag.under = underlay(stack[stack.length - 1]);
+    if (window.motion) motion.pauseScroll();
     view().classList.add("moving");
   }
   e.preventDefault();                                 // the page does not scroll while it is being dragged
@@ -162,6 +165,7 @@ async function release(cancelled) {
   const d = drag;
   drag = null;
   if (!d || !d.on) return;
+  if (window.motion) motion.resumeScroll();
   const [t0, x0] = d.pts[0], [t1, x1] = d.pts[d.pts.length - 1];
   const v = t1 > t0 ? (x1 - x0) / (t1 - t0) : 0;      // px per ms, positive = to the right
   const done = !cancelled && v > -0.1 && (d.p > 0.35 || v > 0.45);

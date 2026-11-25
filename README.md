@@ -22,6 +22,15 @@ report slides it in from the right, and Back or a swipe to the right (from the l
 anywhere that is not a sideways-scrolling strip) returns to the screen you came from, at the
 same scroll position. Tabs switch instantly.
 
+Everything moves like a finished iPhone app (`motion.js`, with GSAP and Lenis in `vendor/`):
+cards rise in one after another, the headline comes into focus, figures count up and bars grow
+when a screen opens; a card lights up and presses in under the finger; a marker slides along the
+tab bar, and tapping the tab you are on glides back to the top. The effects are React Bits ideas
+(AnimatedList, BlurText, CountUp, SpotlightCard) rewritten in plain JavaScript, since the app has
+no React. A screen you go back to, or one re-drawn because new data arrived, appears as it was.
+Settings, Motion, Glide scrolling lets Lenis take over finger scrolling too (off by default:
+iOS's own scrolling is already smooth). iOS's Reduce Motion turns all of it off.
+
 The Portfolio tab (`portfolio.js`) shows the real Trading 212 positions (read
 only) and the risk check run on them: the stress loss against the 30% limit, the
 satellite room, the mix of the growth pot and the look-through dashboard. The data

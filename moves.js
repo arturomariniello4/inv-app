@@ -59,6 +59,7 @@ function movesView() {
   if (k.world_vs_sma200 != null) gauges.push(`World ${k.world_vs_sma200 >= 0 ? "above" : "below"} its 200-day (${(k.world_vs_sma200 * 100).toFixed(1)}%)`);
   if (k.vix_close != null) gauges.push(`VIX ${k.vix_close.toFixed(1)}${k.vix_close < 25 ? " calm" : " nervous"}`);
   if (k.hy_oas_chg_3m != null) gauges.push(`credit spreads ${k.hy_oas_chg_3m >= 1 ? "widening" : "steady"}`);
+  else if (k.hy_proxy_3m != null) gauges.push(`credit ${k.hy_proxy_3m <= -0.035 ? "stressed" : "steady"}`);
   const mood = (d.mood && d.mood.t) || gauges.length ? `<div class="mood-box">${d.mood && d.mood.t ? `<b>${esc(d.mood.t)}</b>` : ""}
     ${d.mood && d.mood.l ? `<div>${esc(d.mood.l)}</div>` : ""}${gauges.length ? `<div class="gauges">Market: ${esc(gauges.join(" · "))}</div>` : ""}</div>` : "";
   const paper = d.pu ? `<p class="paper">Paper trading until ${esc(new Date(d.pu).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }))}:

@@ -241,12 +241,14 @@ function settingsView() {
       <div class="kv"><span>Urgent alerts</span><span>Rarer on busy days</span></div>
       ${edit(p && p.edit_settings, "Change schedule or quiet hours on GitHub")}</div>
     <div class="group"><h3>Useful / Noise feedback</h3><div id="fb-settings">${feedbackSettings()}</div></div>
+    ${window.motion ? `<div class="group"><h3>Motion</h3>${motion.settings()}</div>` : ""}
     <div class="group"><h3>Machine health</h3><div id="mhealth"><p class="muted">Loading…</p></div>
       <p class="muted">Is the machine running? Green: working. Red: Claude is looking at it; alerts may be late.</p></div>
     <div class="group"><h3>Delivery log</h3><div id="dlog"><p class="muted">Loading…</p></div>
       <p class="muted">Every push this phone received (newest first) and whether a notification was shown.</p></div>
     <div class="group"><h3>About</h3><p>Information only. The app never trades: every alert says what could be done and why, and you decide and place every order. Messages are stored only on this phone.</p></div>`;
   wireSetup();
+  if (window.motion) motion.wire();
   machineHealth();
   deliveryLog().then((rows) => {
     const el = $("dlog");
