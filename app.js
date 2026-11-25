@@ -1,7 +1,7 @@
 // INV web app: a personal front page built from what arrives by push. Everything stays on this
-// phone (IndexedDB). Six tabs: Today (the latest briefing as a front page), Alerts, Ideas
-// (companies ranked from their filings, ideas.js), Portfolio (real positions and the risk check,
-// portfolio.js), Reports (past briefings and Saturday reports) and Settings. It never trades.
+// phone (IndexedDB). Four tabs: Moves (home: what to buy, hold, sell or wait on and why, moves.js),
+// Portfolio (real positions and the risk check, portfolio.js), News (the briefing, alerts and the
+// calendar) and More (Research = Ideas and Radar, reports, settings). It never trades.
 const DB = "inv", STORE = "messages";
 const $ = (id) => document.getElementById(id);
 const view = () => $("view");
@@ -348,22 +348,37 @@ function badge() {
   $("badge").classList.toggle("hidden", !n);
 }
 
+// Which of the four tab-bar buttons a screen belongs to.
+const TAB_OF = { moves: "moves", move: "moves", portfolio: "portfolio", today: "today", full: "today", story: "today",
+  alerts: "today", reports: "today", day: "today", more: "more", ideas: "more", idea: "more", radar: "more", settings: "more" };
+function navOn(screen) {
+  const t = TAB_OF[screen] || null;
+  document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+}
+
 async function go(tab, id) {
   cache = await allMessages();
+  if (tab === "move") {                                    // one move opened: the full why
+    navOn("move");
+    history.replaceState(null, "", "#move/" + encodeURIComponent(id));
+    moveCard(id);
+    window.scrollTo(0, 0);
+    return badge();
+  }
   if (tab === "radar") {                                   // one Radar entry in the Ideas tab
-    document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "ideas"));
+    navOn("radar");
     history.replaceState(null, "", "#radar/" + encodeURIComponent(id));
     radarDetail(cache, id);
     return badge();
   }
   if (tab === "day") {                                     // one past day from the calendar
-    document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "reports"));
+    navOn("day");
     history.replaceState(null, "", "#day/" + id);
     dayView(id);
     return badge();
   }
   if (tab === "story") {                                   // one snapshot line opened (layer 2)
-    document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "today"));
+    navOn("story");
     history.replaceState(null, "", "#story/" + encodeURIComponent(id));
     const [mid, i] = String(id).includes("|") ? String(id).split("|") : [null, id];
     const msg = mid ? cache.find((m) => m.id === mid) : briefings().find((m) => m.doc && m.doc.snapshot);
@@ -373,24 +388,32 @@ async function go(tab, id) {
   today.full = tab === "full";
   if (tab === "full") tab = "today";
   if (tab === "idea") {                                    // one company in the Ideas tab
-    document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === "ideas"));
+    navOn("idea");
     history.replaceState(null, "", "#ideas/" + encodeURIComponent(id));
     ideaDetail(cache, id);
     return badge();
   }
+  const views = { moves: movesView, today, alerts: alertsView, ideas: () => ideasView(cache), portfolio: portfolioView,
+    reports: calendarView, settings: settingsView, more: moreView };
+  if (!id && !views[tab]) tab = "moves";
   const name = id ? "open" : tab;
-  document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === (id ? null : tab)));
-  history.replaceState(null, "", id ? "#" + encodeURIComponent(id) : tab === "today" ? "./" : "#" + tab);
+  navOn(id ? null : tab);
+  history.replaceState(null, "", id ? "#" + encodeURIComponent(id) : tab === "moves" ? "./" : "#" + tab);
   if (name === "open") await openMessage(id);
-  else ({ today, alerts: alertsView, ideas: () => ideasView(cache), portfolio: portfolioView, reports: calendarView, settings: settingsView }[tab] || today)();
+  else views[tab]();
+  if (!id && ["today", "alerts", "reports"].includes(tab) && !today.full) {   // News: briefing, alerts, calendar
+    view().insertAdjacentHTML("afterbegin", newsTabs(tab));
+  }
   if (!id) window.scrollTo(0, 0);
   badge();
 }
 
 // Every tappable thing that moves between screens. route() does the move; swipe.js wraps it in a slide
 // and keeps the stack of screens behind, so Back and a swipe return to the screen you came from.
-const NAV = "[data-idea],[data-seg],[data-sort],[data-radar],[data-story],[data-full],[data-day],[data-month],[data-tab],[data-go],[data-open]";
+const NAV = "[data-move],[data-idea],[data-seg],[data-sort],[data-radar],[data-story],[data-full],[data-day],[data-month],[data-tab],[data-go],[data-open]";
 function route(target) {
+  const mvEl = target.closest("[data-move]");
+  if (mvEl) return go("move", mvEl.dataset.move);
   const idea = target.closest("[data-idea]"), seg = target.closest("[data-seg]"), sort = target.closest("[data-sort]");
   const rad = target.closest("[data-radar]");
   const st = target.closest("[data-story]"), full = target.closest("[data-full]");
@@ -411,13 +434,14 @@ function route(target) {
 // The screen a hash names (the address bar keeps it, so a screen can be reopened as it was).
 function goHash(hash, full) {
   const h = decodeURIComponent(String(hash || "").replace(/^#/, ""));
-  if (["alerts", "ideas", "portfolio", "reports", "settings"].includes(h)) return go(h);
+  if (["today", "alerts", "ideas", "portfolio", "reports", "settings", "more", "moves"].includes(h)) return go(h);
+  if (h.startsWith("move/")) return go("move", h.slice(5));
   if (h.startsWith("ideas/")) return go("idea", h.slice(6));
   if (h.startsWith("radar/")) return go("radar", h.slice(6));
   if (h.startsWith("story/")) return go("story", h.slice(6));
   if (h.startsWith("day/")) return go("day", h.slice(4));
   if (h) return go(null, h);
-  return go(full ? "full" : "today");
+  return go(full ? "full" : "moves");
 }
 
 document.addEventListener("click", (e) => {
@@ -431,7 +455,8 @@ if ("serviceWorker" in navigator) {
     if (e.data && e.data.type === "open") go(null, e.data.id);
     else if (/^#ideas/.test(location.hash)) { if (location.hash === "#ideas") go("ideas"); }
     else if (location.hash === "#portfolio") go("portfolio");                // a new briefing brings new positions
-    else if (!/^#(alerts|reports|settings|story|day)|^#.+:/.test(location.hash)) go("today");
+    else if (location.hash === "#today") go("today");
+    else if (!location.hash || location.hash === "#moves") go("moves");                // new moves arrive with each read
   });
 }
 
