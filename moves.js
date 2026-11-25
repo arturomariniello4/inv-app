@@ -31,7 +31,7 @@ function mvSub(m) {
 function mvEntry(m) {
   const e = m.en;
   if (!e) return "";
-  if (e.gd) return e.gd === "cool-off" ? "Cool-off" : "Falling knife";
+  if (e.gd) return { "cool-off": "Cool-off", "news": "Bad news: settling" }[e.gd] || "Falling knife";
   return `Entry ${e.s}/6` + (e.st ? ` · in ${e.st} steps` : "");
 }
 function mvRow(m) {
@@ -41,7 +41,7 @@ function mvRow(m) {
   return `<button class="mrow" data-move="${esc(m.i)}">${mvChip(m.mv)}<span>
     <div class="t">${esc(m.n)}${m.tk ? ` <span class="tk">${esc(m.tk.t)}</span>` : ""} <span class="muted">${esc(mvSub(m))}</span></div>
     <div class="why">${esc(m.l)}</div>
-    <div class="muted">${esc(meta)}</div>
+    <div class="muted">${esc(meta)}${m.nw ? ` · <span class="newsdot">${m.nw.length} in the news</span>` : ""}</div>
     ${m.ch ? `<div class="chg">Changed: was ${esc(m.ch.f || "new")} · ${esc(when(m.ch.at))}</div>` : ""}</span></button>`;
 }
 
@@ -64,10 +64,11 @@ function movesView() {
     ${d.mood && d.mood.l ? `<div>${esc(d.mood.l)}</div>` : ""}${gauges.length ? `<div class="gauges">Market: ${esc(gauges.join(" · "))}</div>` : ""}</div>` : "";
   const paper = d.pu ? `<p class="paper">Paper trading until ${esc(new Date(d.pu).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }))}:
     every Buy is followed in the paper portfolio first.</p>` : "";
+  const tr = d.tr ? trackBox(d.tr) : "";
   const secs = d.s.filter(([, , ids]) => ids.length).map(([id, title, ids]) => `<section class="msec">
     <div class="msec-h"><span>${esc(title)}</span><span>${ids.length}</span></div>${ids.map((i) => by[i] ? mvRow(by[i]) : "").join("")}</section>`).join("");
   view().innerHTML = `<div class="mhead"><div class="muted">${esc(mvTime(d.u))}</div><h1>Your moves</h1></div>`
-    + setupBanner() + `<div class="wrap">${mood}${paper}${secs || '<p class="muted">Nothing to do today.</p>'}
+    + setupBanner() + `<div class="wrap">${mood}${paper}${tr}${secs || '<p class="muted">Nothing to do today.</p>'}
     <p class="muted note">Advice only. The app never trades; you place every order.</p></div>`;
 }
 
@@ -85,6 +86,7 @@ function moveCard(id) {
     <div class="mbox"><h3>In one line</h3><p>${esc(m.l)}</p></div>
     ${tickerBox(m)}
     ${entryBox(m)}
+    ${newsBox(m)}
     ${m.yb && m.yb.length ? `<div class="mbox"><h3>Why buy or keep</h3>${list(m.yb)}</div>` : ""}
     <div class="mbox"><h3>Why not</h3>${list(m.yn)}</div>
     <div class="mbox"><h3>How much</h3><div class="kv"><span>Size</span><b>${esc(m.ls ? (m.sz || "").split(";")[0] : (m.sz || "n/a"))}</b></div>
@@ -95,6 +97,17 @@ function moveCard(id) {
     ${m.k === "stock" ? `<button class="row" data-idea="${esc(m.i)}"><span><div class="t">Full company analysis</div>
       <div class="muted">Checks, grades, value range, statements</div></span><span class="chev">›</span></button>` : ""}
     <p class="muted note">Advice only. You place every order yourself.</p></div>`;
+}
+
+// In the news: only confirmed reports (official source, two outlets or the company's own filing). News alone never
+// makes a Buy; confirmed bad news holds a Buy? back for 2 days.
+function newsBox(m) {
+  if (!m.nw || !m.nw.length) return "";
+  const arrow = { up: "▲ ", down: "▼ " };
+  const items = m.nw.map(([t, u, why, d, tone]) => `<li>${esc(arrow[tone] || "")}${u ? `<a href="${esc(safeUrl(u))}" target="_blank" rel="noopener">${esc(t)}</a>` : esc(t)}
+    <span class="muted">${esc([why, d].filter(Boolean).join(" · "))}</span></li>`).join("");
+  return `<div class="mbox"><h3>In the news</h3><ul>${items}</ul>
+    <p class="muted">Confirmed reports only. News alone never makes a Buy.</p></div>`;
 }
 
 // How to find it on Trading 212: the ticker its app shows, the listing the analysis priced, the ISIN (exact match).
@@ -127,6 +140,17 @@ function entryBox(m) {
   return `<div class="mbox"><h3>Entry timing · ${e.s}/6</h3><p class="ev">${verdict}</p>${rows}
     ${e.a ? `<p class="muted">${esc(e.a)}</p>` : ""}${e.tr ? `<div class="kv"><span>Waiting for</span><span>${esc(e.tr)}</span></div>` : ""}
     <p class="muted">5-6 buy, 3-4 buy in 2 steps, 0-2 wait. A good company still needs a fair price, an up trend and a calm market.</p></div>`;
+}
+
+// The paper track record: every Buy followed on paper from the last close, scored against the World ETF.
+function trackBox(t) {
+  const pc = (x) => x == null ? "" : (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1) + "%";
+  const rows = t.c.map(([n, since, r, v, open]) => `<div class="kv"><span>${esc(n)} <span class="muted">${esc(since)}${open ? "" : " · sold"}</span></span>
+    <span>${esc(pc(r))} <span class="${v >= 0 ? "ok" : "no"}">(${esc(pc(v))} vs World)</span></span></div>`).join("");
+  return `<details class="mbox track"><summary><b>Paper track record</b> · ${t.n} call${t.n === 1 ? "" : "s"},
+    ${t.b} beat the World ETF · average ${esc(pc(t.v))} vs World</summary>${rows}
+    <p class="muted">Each Buy bought on paper at the last close and compared with the World ETF over the same days.
+    Early calls say little; the record counts from 30 days.</p></details>`;
 }
 
 // More: everything that is not a move, one tap away.
