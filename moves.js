@@ -49,8 +49,9 @@ function movesView() {
   const d = movesLatest();
   if (!d) {
     view().innerHTML = bar("Your moves") + setupBanner() + `<div class="empty"><h2>Your first moves arrive with the next update</h2>
-      <p class="muted">At 11:45 (midday read) and 22:30 (evening briefing) this page fills with what to buy, hold, sell or wait on,
-      and why. Advice only: you place every order.</p></div>`;
+      <p class="muted">The moves are checked every hour. This page fills with what to buy, hold, sell or wait on, and why,
+      as soon as a move changes (changes at night wait until 07:00), and with the midday read and the evening briefing.
+      Advice only: you place every order.</p></div>`;
     return;
   }
   const by = Object.fromEntries(d.m.map((m) => [m.i, m]));

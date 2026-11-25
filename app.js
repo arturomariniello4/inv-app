@@ -289,6 +289,7 @@ async function openMessage(id) {
   const m = cache.find((x) => x.id === id);
   if (!m) return go("today");
   if (m.kind === "ideas") return go("ideas");
+  if (m.kind === "moves") return go("moves");                // a move changed: the home screen
   const back = m.kind === "alert" ? "alerts" : "reports";
   if (m.doc && m.doc.type === "alert") {
     view().innerHTML = bar("Alert", back) + alertCard(m.doc, m.id);
