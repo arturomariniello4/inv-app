@@ -39,7 +39,7 @@ function mvRow(m) {
   const meta = [mvEntry(m), size, "Confidence " + m.c, m.p ? "paper" : ""]
     .filter(Boolean).join(" · ");
   return `<button class="mrow" data-move="${esc(m.i)}">${mvChip(m.mv)}<span>
-    <div class="t">${esc(m.n)} <span class="muted">${esc(mvSub(m))}</span></div>
+    <div class="t">${esc(m.n)}${m.tk ? ` <span class="tk">${esc(m.tk.t)}</span>` : ""} <span class="muted">${esc(mvSub(m))}</span></div>
     <div class="why">${esc(m.l)}</div>
     <div class="muted">${esc(meta)}</div>
     ${m.ch ? `<div class="chg">Changed: was ${esc(m.ch.f || "new")} · ${esc(when(m.ch.at))}</div>` : ""}</span></button>`;
@@ -82,6 +82,7 @@ function moveCard(id) {
     <div class="mtitle">${mvChip(m.mv, true)}<div><h1>${esc(m.n)}</h1><div class="muted">${esc(sub)}</div></div></div>
     ${m.ch ? `<div class="chg">Changed: was ${esc(m.ch.f || "new")} · ${esc(when(m.ch.at))}</div>` : ""}
     <div class="mbox"><h3>In one line</h3><p>${esc(m.l)}</p></div>
+    ${tickerBox(m)}
     ${entryBox(m)}
     ${m.yb && m.yb.length ? `<div class="mbox"><h3>Why buy or keep</h3>${list(m.yb)}</div>` : ""}
     <div class="mbox"><h3>Why not</h3>${list(m.yn)}</div>
@@ -93,6 +94,20 @@ function moveCard(id) {
     ${m.k === "stock" ? `<button class="row" data-idea="${esc(m.i)}"><span><div class="t">Full company analysis</div>
       <div class="muted">Checks, grades, value range, statements</div></span><span class="chev">›</span></button>` : ""}
     <p class="muted note">Advice only. You place every order yourself.</p></div>`;
+}
+
+// How to find it on Trading 212: the ticker its app shows, the listing the analysis priced, the ISIN (exact match).
+function tickerBox(m) {
+  const k = m.tk;
+  if (!k) return "";
+  const seen = k.ok === true ? "found in Trading 212's list" : k.ok === false ? "not found in Trading 212's list: search the ISIN" : "";
+  return `<div class="mbox"><h3>On Trading 212</h3>
+    <div class="kv"><span>Search</span><b class="tkbig">${esc(k.t)}</b></div>
+    ${k.n && k.n !== m.n ? `<div class="kv"><span>Name</span><span>${esc(k.n)}</span></div>` : ""}
+    ${k.x ? `<div class="kv"><span>Listing</span><span>${esc(k.x)}</span></div>` : ""}
+    ${k.isin ? `<div class="kv"><span>ISIN</span><span>${esc(k.isin)}</span></div>` : ""}
+    ${seen ? `<p class="muted">${esc(seen)}</p>` : ""}
+    ${m.k === "core" ? '<p class="muted">The plan\'s suggested fund for this part; any similar fund you prefer works too.</p>' : ""}</div>`;
 }
 
 // The entry rules on the why card: Price, Trend and Market out of 2 each, the guards, the trigger; core: the lump-sum rule.
