@@ -241,16 +241,37 @@ function settingsView() {
       <div class="kv"><span>Urgent alerts</span><span>Rarer on busy days</span></div>
       ${edit(p && p.edit_settings, "Change schedule or quiet hours on GitHub")}</div>
     <div class="group"><h3>Useful / Noise feedback</h3><div id="fb-settings">${feedbackSettings()}</div></div>
+    <div class="group"><h3>Machine health</h3><div id="mhealth"><p class="muted">Loading…</p></div>
+      <p class="muted">Is the machine running? Green: working. Red: Claude is looking at it; alerts may be late.</p></div>
     <div class="group"><h3>Delivery log</h3><div id="dlog"><p class="muted">Loading…</p></div>
       <p class="muted">Every push this phone received (newest first) and whether a notification was shown.</p></div>
     <div class="group"><h3>About</h3><p>Information only. The app never trades: every alert says what could be done and why, and you decide and place every order. Messages are stored only on this phone.</p></div>`;
   wireSetup();
+  machineHealth();
   deliveryLog().then((rows) => {
     const el = $("dlog");
     if (!el) return;
     el.innerHTML = rows.length ? rows.map((r) => `<div class="kv"><span>${esc(when(r.at))}</span><span>${esc([r.title || r.id, r.part, r.shown ? "shown: " + r.shown : "", r.note, r.error].filter(Boolean).join(" · "))}</span></div>`).join("")
       : '<p class="muted">No push received since this log was added.</p>';
   });
+}
+
+// Each run publishes live/health.json next to the app (machine state only: times and problem kinds).
+async function machineHealth() {
+  const el = $("mhealth");
+  if (!el) return;
+  let doc = null;
+  try {
+    const res = await fetch("live/health.json?t=" + Date.now(), { cache: "no-store" });
+    if (res.ok) doc = await res.json();
+  } catch (_) { doc = null; }
+  if (!$("mhealth")) return;
+  if (!doc || !Array.isArray(doc.lines) || !doc.lines.length) {
+    el.innerHTML = '<p class="muted">Arrives with the next run.</p>';
+    return;
+  }
+  el.innerHTML = doc.lines.map((l) => `<div class="kv health ${l.ok ? "ok" : "bad"}"><span><i class="dot"></i>${esc(l.name)}</span>`
+    + `<span>${l.ok ? "OK" : "Problem"} · ${esc(when(l.checked_at))}${l.ok ? "" : `<br>${esc(String(l.detail || "").replace(/\b(late|skipped|crash|network|empty): /g, ""))}`}</span></div>`).join("");
 }
 
 async function deliveryLog() {

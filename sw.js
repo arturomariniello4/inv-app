@@ -5,6 +5,9 @@
 // v5: a long report arrives as ONE push with a key; its content is fetched from an encrypted box and opened here
 // v7: a delivery log (Settings): every push received, when, and whether a notification was shown
 // v6: every notification gets its own tag: iOS replaces a same-tag notification silently (no banner, no sound)
+// v8: delivery receipts (plan step 101, docs/ops.md "Push delivery receipts"): after a notification shows, a receipt
+// {id, part, shown_at, r} goes to the inv-receipts Worker named in the push; one that cannot go waits in a cache
+// and goes with the next push or when the app opens. A receipt never delays or stops a notification.
 const DB = "inv", STORE = "messages", PARTS = "parts";
 
 function openDb() {
@@ -105,6 +108,7 @@ async function openWaiting() {
 self.addEventListener("message", (event) => {
   if (!event.data || event.data.type !== "open-waiting") return;
   event.waitUntil((async () => {
+    await flushReceipts();
     if (await openWaiting()) (await self.clients.matchAll({ type: "window" })).forEach((c) => c.postMessage({ type: "new-message" }));
   })());
 });
@@ -120,6 +124,34 @@ async function logPush(entry) {
   } catch (_) {}
 }
 
+// Delivery receipts: the push carries rc = {u: the Worker's address, r: a code only this push knows}.
+const OUTBOX = "inv-receipts";
+async function postReceipt(u, body) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 5000);
+  try {                                   // text/plain: a simple request, no preflight
+    const res = await fetch(u, { method: "POST", body, signal: ctl.signal, cache: "no-store" });
+    return res.ok;
+  } catch (_) { return false; } finally { clearTimeout(t); }
+}
+async function flushReceipts() {
+  try {
+    const box = await caches.open(OUTBOX);
+    for (const req of await box.keys()) {
+      const res = await box.match(req), { u, body } = await res.json();
+      if (await postReceipt(u, body)) await box.delete(req);
+    }
+  } catch (_) {}
+}
+async function receipt(msg, shown) {
+  if (!msg.rc || !msg.rc.u || !msg.rc.r || shown === "no") return;
+  try {
+    const body = JSON.stringify({ id: msg.id, part: msg.part || 0, shown_at: new Date().toISOString(), r: msg.rc.r });
+    if (await postReceipt(msg.rc.u, body)) return;
+    const box = await caches.open(OUTBOX);
+    await box.put(new Request(`./receipt/${encodeURIComponent(msg.id)}/${msg.part || 0}`), new Response(JSON.stringify({ u: msg.rc.u, body })));
+  } catch (_) {}
+}
+
 async function show(msg, note) {
   const tag = (msg.tag || msg.id) + "@" + Date.now();
   let shown = "yes", error = "";
@@ -129,6 +161,8 @@ async function show(msg, note) {
     if (!open.length) shown = "not listed";
   } catch (err) { shown = "no"; error = String(err).slice(0, 120); }
   await logPush({ id: msg.id, kind: msg.kind, title: msg.title, part: msg.parts ? `${msg.part + 1}/${msg.parts}` : "", box: !!msg.box, shown, error, note: note || "" });
+  await receipt(msg, shown);              // after the notification, never before
+  await flushReceipts();                  // and any receipt that could not go earlier
 }
 
 self.addEventListener("install", () => self.skipWaiting());
