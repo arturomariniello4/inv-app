@@ -64,6 +64,17 @@
     root.querySelectorAll(FIGURES).forEach((el) => { if (seen(el)) countUp(el); });
     const bars = [...root.querySelectorAll(BARS)].filter(seen);
     if (bars.length) g.from(bars, { scaleX: 0, transformOrigin: "0% 50%", duration: 0.9, ease: "power3.out", stagger: 0.03, delay: 0.15, clearProps: "transform" });
+    drawLines(root);
+  }
+
+  // Chart lines (charts.js) draw themselves from left to right when their screen opens.
+  function drawLines(root) {
+    [...root.querySelectorAll(".chart .cl.main, .spark path")].filter((el) => el.getBoundingClientRect().top < window.innerHeight + 40).forEach((el, i) => {
+      const n = el.getTotalLength ? el.getTotalLength() : 0;
+      if (!n) return;
+      g.fromTo(el, { strokeDasharray: n, strokeDashoffset: n }, { strokeDashoffset: 0, duration: 1.1, ease: "power2.inOut", delay: 0.15 + Math.min(i, 8) * 0.04,
+        clearProps: "strokeDasharray,strokeDashoffset" });
+    });
   }
 
   // BlurText: the headline sharpens word by word, then goes back to plain text.

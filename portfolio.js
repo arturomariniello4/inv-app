@@ -30,8 +30,9 @@ function gauge(loss, limit) {
 
 function portfolioView() {
   const p = pfLatest();
+  const charts = typeof pfChartBox === "function" ? pfChartBox() + pricesList() : "";   // charts.js
   if (!p) {
-    view().innerHTML = bar("Portfolio") + `<div class="empty"><h2>No positions yet</h2>
+    view().innerHTML = bar("Portfolio") + charts + `<div class="empty"><h2>No positions yet</h2>
       <p class="muted">Your Trading 212 positions arrive with the next evening briefing, once the read-only link has taken a snapshot.
       The risk check then runs on what you really hold instead of the example portfolio.</p></div>`;
     return;
@@ -60,6 +61,7 @@ function portfolioView() {
     <button class="phero" data-pf-hide>
       <span class="kicker">Account value</span><b>${pfMoney(p.total, cur)}</b>
       <span class="muted">Cash ${pfMoney(p.cash, cur)} · tap to ${pfHide ? "show" : "hide"} amounts</span></button>
+    ${charts}
     <div class="isec"><h4>Stress check <span>growth pot, worse scenario</span></h4>
       <div class="box pbox ${over ? "over" : ""}">
         <div class="pbig"><b class="${over ? "down" : ""}">−${ppct(st.loss)}</b><span>${over

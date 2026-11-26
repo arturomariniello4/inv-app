@@ -37,6 +37,13 @@ satellite room, the mix of the growth pot and the look-through dashboard. The da
 rides inside the evening briefing, so it reaches only this phone, encrypted; tap the
 account value to hide amounts.
 
+Charts (`charts.js`): the Portfolio tab opens with a line chart of the paper portfolio's gain or loss
+since paper trading began (24 Nov 2026), drawn against the same money in the World ETF, and can switch to
+the real Trading 212 account value from the read-only snapshots. Below it, every name on Your moves has a
+3-month sparkline; each move card has a price chart (1M to 2Y) with INV's calls marked as dots. Touch and
+slide along a chart to read a day. The data (`inv/charts.py`) rides only in the evening briefing's encrypted
+box, from prices the run already keeps; nothing new is fetched.
+
 These files are published from the public repository `inv-app` on GitHub Pages.
 They hold no data and no secrets: `config.js` carries only the sender's public
 key. Information only: the app never trades.

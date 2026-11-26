@@ -344,6 +344,35 @@
     .prow { display:grid; grid-template-columns:1fr auto; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); align-items:center; } .prow:last-child { border-bottom:0; }
     .prow b { font-size:15px; } .pm { font-size:12px; color:var(--muted); margin-top:3px; }
     .pv2 { display:grid; text-align:right; } .pv2 b { font:600 14px var(--mono); } .pv2 span { font:11px var(--mono); color:var(--muted); }
+    /* Charts (charts.js): the paper portfolio, the real account and each move's price; touch and slide to read a day */
+    .cbox .box { padding:10px 12px 8px; } .cbox p.muted { font-size:12px; margin:6px 0 2px; line-height:1.4; }
+    .cseg { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin:0 0 8px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:3px; }
+    .cseg button { padding:6px 0; border-radius:8px; font-size:14px; font-weight:600; color:var(--muted); }
+    .cseg button.on { background:var(--accent); color:var(--paper); }
+    .chead { display:grid; gap:1px; margin-bottom:4px; } .chead b { font:700 28px/1.15 var(--serif); font-variant-numeric:tabular-nums; }
+    .chead.sm { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; } .chead.sm b { font:700 22px var(--serif); } .chead.sm span { font-size:14px; font-weight:600; }
+    .cchips { display:flex; gap:4px; margin:6px 0 2px; } .cchips button { font:600 12px var(--sans); padding:4px 10px; border-radius:99px; color:var(--muted); }
+    .cchips button.on { background:var(--tint); color:var(--accent); }
+    .chart { position:relative; touch-action:pan-y; user-select:none; -webkit-user-select:none; margin:4px -4px 0; }
+    .chart svg { display:block; width:100%; height:auto; overflow:visible; }
+    .chart .cg { stroke:var(--line); stroke-width:1; } .chart .cz { stroke:var(--muted); stroke-width:1; stroke-dasharray:2 3; }
+    .chart .cy, .chart .cx { font:10px var(--mono); fill:var(--muted); }
+    .chart .cl { fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
+    .chart .cl.main, .chart .cdot.main { stroke:var(--accent); } .chart .cdot.main { fill:var(--accent); }
+    .chart .cl.twin { stroke:var(--muted); stroke-dasharray:5 4; stroke-width:1.75; } .chart .cdot.twin { fill:var(--muted); stroke:var(--card); stroke-width:2; }
+    .chart .ca { fill:color-mix(in srgb, var(--accent) 10%, transparent); }
+    .chart .cm circle { fill:var(--accent); stroke:var(--card); stroke-width:2; } .chart .cm.sell circle { fill:var(--down); } .chart .cm.wait circle { fill:var(--mid); }
+    .chart .ch-x { stroke:var(--ink2); stroke-width:1; } .chart .ch-p { fill:var(--accent); stroke:var(--card); stroke-width:2; }
+    .ctip { position:absolute; top:-6px; transform:translateY(-100%); background:var(--ink); color:var(--paper); border-radius:8px; padding:6px 8px; font-size:12px; line-height:1.35;
+            pointer-events:none; white-space:nowrap; box-shadow:0 6px 16px -6px rgba(0,0,0,.35); z-index:2; }
+    .ctip .cd { font-weight:700; } .ctip b { font-variant-numeric:tabular-nums; } .ctip .cn { opacity:.8; } .ctip .cc { margin-top:2px; color:var(--paper); font-weight:600; }
+    .ctip i, .clegend i { display:inline-block; width:12px; height:0; border-top:2px solid var(--accent); vertical-align:middle; margin-right:5px; }
+    .ctip i { border-top-color:var(--paper); } .ctip i.twin { border-top-style:dashed; opacity:.75; }
+    .clegend { display:flex; gap:14px; font-size:12px; color:var(--ink2); margin:2px 0 0; } .clegend i.twin { border-top:2px dashed var(--muted); }
+    .crow { display:grid; grid-template-columns:1fr 64px 92px; gap:10px; align-items:center; width:100%; text-align:left; padding:10px 0; border-bottom:1px solid var(--line); }
+    .crow:last-child { border-bottom:0; } .crow b { font-size:15px; } .cv { display:grid; text-align:right; } .cv b { font:600 14px var(--mono); } .cv span { font:11px var(--mono); }
+    .spark { width:64px; height:22px; } .spark path { fill:none; stroke-width:1.5; stroke-linejoin:round; } .spark.up path { stroke:var(--up); } .spark.down path { stroke:var(--down); }
+    .mbox.cbox .kv { font-size:13px; } .mbox.cbox .kv span:last-child { white-space:normal; }
     .badge { position:absolute; top:-2px; left:calc(50% + 6px); background:var(--alert); color:#fff; font-size:10px; border-radius:99px; padding:0 5px; min-width:16px; }
 
     /* Motion and finish (motion.js): Lenis, a frosted tab bar with a sliding marker, soft depth, the spotlight press */
@@ -376,13 +405,14 @@
   <script src="ideas.js?v=motion4"></script>
   <script src="snapshot.js?v=motion4"></script>
   <script src="calendar.js?v=motion4"></script>
-  <script src="portfolio.js?v=motion4"></script>
-  <script src="moves.js?v=motion4"></script>
+  <script src="portfolio.js?v=chart1"></script>
+  <script src="charts.js?v=chart1"></script>
+  <script src="moves.js?v=chart1"></script>
   <script src="feedback.js?v=motion4"></script>
   <script src="app.js?v=motion4"></script>
-  <script src="swipe.js?v=motion4"></script>
+  <script src="swipe.js?v=chart1"></script>
   <script src="vendor/gsap-3.13.0.min.js"></script>
   <script src="vendor/lenis-1.3.4.min.js"></script>
-  <script src="motion.js?v=motion4"></script>
+  <script src="motion.js?v=chart1"></script>
 </body>
 </html>

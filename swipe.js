@@ -136,7 +136,7 @@ document.addEventListener("touchstart", (e) => {
   drag = null;
   if (busy || e.touches.length !== 1 || !mainBack()) return;
   const t = e.touches[0], edge = t.clientX <= EDGE;
-  if (!edge && (scrollsSideways(e.target) || e.target.closest("input,textarea,select,summary"))) return;
+  if (!edge && (scrollsSideways(e.target) || e.target.closest("input,textarea,select,summary,.chart"))) return;
   drag = { x0: t.clientX, y0: t.clientY, edge, on: false, pts: [[e.timeStamp, t.clientX]] };
 }, { passive: true });
 

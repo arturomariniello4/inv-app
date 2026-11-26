@@ -84,6 +84,7 @@ function moveCard(id) {
     <div class="mtitle">${mvChip(m.mv, true)}<div><h1>${esc(m.n)}</h1><div class="muted">${esc(sub)}</div></div></div>
     ${m.ch ? `<div class="chg">Changed: was ${esc(m.ch.f || "new")} · ${esc(when(m.ch.at))}</div>` : ""}
     <div class="mbox"><h3>In one line</h3><p>${esc(m.l)}</p></div>
+    ${typeof priceBox === "function" ? priceBox(m.i) : ""}
     ${tickerBox(m)}
     ${entryBox(m)}
     ${newsBox(m)}
