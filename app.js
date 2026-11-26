@@ -154,8 +154,16 @@ function alertRows(list) {
     const kicker = a ? a.tags.join(" · ") : "Alert";
     const t = fbTap(m.id), mark = t ? ` <span class="fb-tag ${t === "useful" ? "up" : "down"}">${t === "useful" ? "Useful" : "Noise"}</span>` : "";
     return `<button class="row" data-open="${esc(m.id)}"><span><div class="kicker alert">${esc(kicker)} · ${esc(when(m.received))}</div>
-    <div class="t">${esc(a ? a.headline : m.title)}</div><div class="muted">${esc(a ? a.sure.label + " · " + a.sure.short : m.body)}${mark}</div></span><span class="chev">›</span></button>`;
+    <div class="t">${esc(a ? a.headline : m.title)}</div><div class="muted">${esc(a ? (a.moved ? a.moved.verdict + " · " + a.sure.label : a.sure.label + " · " + a.sure.short) : m.body)}${mark}</div></span><span class="chev">›</span></button>`;
   }).join("");
+}
+
+// Price alerts: the likely reason and the evidence behind it (inv/explain.py), each line with its source.
+function movedBlock(mv) {
+  if (!mv) return "";
+  const ev = (mv.evidence || []).map((e) => `<li>${esc(e.t)} <span class="muted">· ${esc(e.src || "")}${e.why ? ", " + esc(e.why) : ""}</span>${
+    e.u ? ` <a href="${esc(safeUrl(e.u))}" target="_blank" rel="noopener">Open</a>` : ""}</li>`).join("");
+  return `<div class="blk moved"><h3>Why it may have moved</h3><p><b>${esc(mv.line)}</b></p>${ev ? `<ul>${ev}</ul>` : ""}</div>`;
 }
 
 // One alert, laid out like a news card: tags, headline, summary, why, what you could do, both cases, how sure.
@@ -169,6 +177,8 @@ function alertCard(a, id) {
     <div class="tags">${a.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}${a.running ? `<span class="tag urg">${esc(a.running)}</span>` : ""}</div>
     <h2>${esc(a.headline)}</h2>
     ${a.standfirst ? `<p class="stand">${esc(a.standfirst)}</p>` : ""}
+    ${a.about ? `<div class="blk about"><h3>What ${esc(a.about.name)} is</h3><p>${esc(a.about.what)}</p></div>` : ""}
+    ${movedBlock(a.moved)}
     ${block("Why it matters to you", a.why)}${block("What you could do", a.todo)}${cases}
     <div class="blk"><h3>How sure</h3><p class="conf"><span class="dots">${esc(a.sure.dots)}</span><span><b>${esc(a.sure.label)}.</b> ${esc(a.sure.reason)}</span></p></div>
     ${also}
